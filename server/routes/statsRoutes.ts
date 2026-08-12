@@ -131,10 +131,16 @@ export async function calculateLeaderboard(options: {
   const qualifiedList = leaderboard.filter((p) => p.is_qualified);
   const highestQualAvg = qualifiedList.length > 0 ? qualifiedList[0].average_score : null;
 
-  leaderboard.forEach((item, idx) => {
-    item.rank = idx + 1;
-    if (item.is_qualified && highestQualAvg !== null && item.average_score === highestQualAvg) {
-      item.is_champion = true;
+  leaderboard.forEach((item) => {
+    if (item.is_qualified) {
+      item.rank = currentRank;
+      currentRank += 1;
+      if (highestQualAvg !== null && item.average_score === highestQualAvg) {
+        item.is_champion = true;
+      }
+    } else {
+      item.rank = 0;
+      item.is_champion = false;
     }
   });
 
@@ -186,8 +192,13 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
 
     // Current leader
     const champions = leaderboard.filter((p) => p.is_champion);
-    const leaderName = champions.length > 0 ? champions.map((c) => c.full_name).join(' & ') : (leaderboard[0]?.full_name || 'N/A');
-    const leaderAvg = champions.length > 0 ? champions[0].average_score : (leaderboard[0]?.average_score || 0);
+    const firstQual = leaderboard.find((p) => p.is_qualified);
+    const leaderName = champions.length > 0
+      ? champions.map((c) => c.full_name).join(' & ')
+      : (firstQual ? firstQual.full_name : 'None Yet (Qualifying)');
+    const leaderAvg = champions.length > 0
+      ? champions[0].average_score
+      : (firstQual ? firstQual.average_score : 0);
 
     // Most wins this month
     const sortedByWins = [...leaderboard].sort((a, b) => b.wins_1st - a.wins_1st);
@@ -807,7 +818,8 @@ router.get('/export', optionalAuthenticateToken, async (req, res) => {
 
       let csv = 'Rank,Player Name,Matches Played,1st Places (Wins),2nd Places,3rd Places,4th Places,Total Points,Average Score,Average Position,Win %,Podium %,Qualification Status\n';
       leaderboard.forEach((p) => {
-        csv += `${p.rank},"${p.full_name}",${p.total_matches},${p.wins_1st},${p.pos_2nd},${p.pos_3rd},${p.pos_4th},${p.total_points},${p.average_score},${p.average_position},${p.win_pct}%,${p.podium_pct}%,${p.is_qualified ? 'Qualified' : 'Not Qualified'}\n`;
+        const rStr = p.is_qualified && p.rank > 0 ? p.rank : 'Unqualified';
+        csv += `${rStr},"${p.full_name}",${p.total_matches},${p.wins_1st},${p.pos_2nd},${p.pos_3rd},${p.pos_4th},${p.total_points},${p.average_score},${p.average_position},${p.win_pct}%,${p.podium_pct}%,${p.is_qualified ? 'Qualified' : 'Not Qualified'}\n`;
       });
 
       res.setHeader('Content-Type', 'text/csv');

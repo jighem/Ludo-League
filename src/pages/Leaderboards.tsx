@@ -174,19 +174,19 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 font-extrabold uppercase tracking-wider text-[10px] border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="py-3 px-4">Rank</th>
-                  <th className="py-3 px-4">Player</th>
-                  <th className="py-3 px-4 text-center">Played</th>
-                  <th className="py-3 px-4 text-center">1st (Wins)</th>
-                  <th className="py-3 px-4 text-center">2nd</th>
-                  <th className="py-3 px-4 text-center">3rd</th>
-                  <th className="py-3 px-4 text-center">Last</th>
-                  <th className="py-3 px-4 text-right">Total Pts</th>
-                  <th className="py-3 px-4 text-right">Avg Score</th>
-                  <th className="py-3 px-4 text-center">Avg Finish</th>
-                  <th className="py-3 px-4 text-center">Win %</th>
-                  <th className="py-3 px-4 text-center">Podium %</th>
-                  <th className="py-3 px-4 text-center">Qualification</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Rank</th>
+                  <th className="py-3 px-4 text-left whitespace-nowrap">Player</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Played</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">1st (Wins)</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">2nd</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">3rd</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Last</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Total Pts</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Avg Score</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Avg Finish</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Win %</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Podium %</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap">Qualification</th>
                 </tr>
               </thead>
 
@@ -197,19 +197,23 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                     onClick={() => onSelectPlayer(item.player_id)}
                     className="hover:bg-zinc-100/80 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors"
                   >
-                    <td className="py-3.5 px-4 font-black text-sm">
-                      {item.rank === 1 ? (
-                        <span className="text-amber-600 dark:text-amber-400 font-black">🥇 1</span>
-                      ) : item.rank === 2 ? (
-                        <span className="text-zinc-600 dark:text-zinc-300 font-black">🥈 2</span>
-                      ) : item.rank === 3 ? (
-                        <span className="text-amber-700 dark:text-amber-600 font-black">🥉 3</span>
+                    <td className="py-3.5 px-4 text-center font-black text-sm whitespace-nowrap">
+                      {item.is_qualified && item.rank > 0 ? (
+                        item.rank === 1 ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-black">🥇 1</span>
+                        ) : item.rank === 2 ? (
+                          <span className="text-zinc-600 dark:text-zinc-300 font-black">🥈 2</span>
+                        ) : item.rank === 3 ? (
+                          <span className="text-amber-700 dark:text-amber-600 font-black">🥉 3</span>
+                        ) : (
+                          <span className="text-zinc-500 dark:text-zinc-400 font-bold">#{item.rank}</span>
+                        )
                       ) : (
-                        <span className="text-zinc-500 dark:text-zinc-400 font-bold">#{item.rank}</span>
+                        <span className="text-zinc-400 dark:text-zinc-500 font-bold" title="Must reach minimum matches to qualify for rank">—</span>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold text-xs flex items-center justify-center shrink-0">
                           {item.full_name.charAt(0)}
@@ -230,19 +234,19 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.total_matches}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{item.wins_1st}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.pos_2nd}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.pos_3rd}</td>
-                    <td className="py-3.5 px-4 text-center text-red-600 dark:text-red-400 font-bold">{item.last_place}</td>
-                    <td className="py-3.5 px-4 text-right font-bold text-zinc-800 dark:text-zinc-200">{item.total_points.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm">{item.average_score.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.average_position.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.win_pct}%</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.podium_pct}%</td>
-                    <td className="py-3.5 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.total_matches}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{item.wins_1st}</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.pos_2nd}</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.pos_3rd}</td>
+                    <td className="py-3.5 px-4 text-center text-red-600 dark:text-red-400 font-bold whitespace-nowrap">{item.last_place}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.total_points.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">{item.average_score.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.average_position.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.win_pct}%</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.podium_pct}%</td>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <span
-                        className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
+                        className={`inline-block px-2.5 py-1 text-[10px] font-extrabold rounded-full border whitespace-nowrap ${
                           item.is_qualified
                             ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/80'
                             : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/90 dark:text-zinc-400 dark:border-zinc-700/60'

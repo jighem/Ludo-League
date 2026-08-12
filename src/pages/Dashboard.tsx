@@ -249,13 +249,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 font-extrabold uppercase tracking-wider text-[10px] bg-zinc-50 dark:bg-transparent">
-                    <th className="py-2.5 px-3">Rank</th>
-                    <th className="py-2.5 px-3">Player</th>
-                    <th className="py-2.5 px-3 text-center">Played</th>
-                    <th className="py-2.5 px-3 text-center">Wins</th>
-                    <th className="py-2.5 px-3 text-center">Win %</th>
-                    <th className="py-2.5 px-3 text-right">Avg Score</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Rank</th>
+                    <th className="py-2.5 px-3 text-left whitespace-nowrap">Player</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Played</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Wins</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Win %</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Avg Score</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-800 dark:text-zinc-300">
@@ -265,19 +265,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       onClick={() => onSelectPlayer(item.player_id)}
                       className="hover:bg-zinc-100/70 dark:hover:bg-zinc-800/40 cursor-pointer transition-colors"
                     >
-                      <td className="py-3 px-3 font-black text-sm">
-                        {item.rank === 1 ? (
-                          <span className="text-amber-600 dark:text-amber-400 font-black">🥇 1</span>
-                        ) : item.rank === 2 ? (
-                          <span className="text-zinc-600 dark:text-zinc-400 font-black">🥈 2</span>
-                        ) : item.rank === 3 ? (
-                          <span className="text-amber-700 dark:text-amber-600 font-black">🥉 3</span>
+                      <td className="py-3 px-3 text-center font-black text-sm whitespace-nowrap">
+                        {item.is_qualified && item.rank > 0 ? (
+                          item.rank === 1 ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-black">🥇 1</span>
+                          ) : item.rank === 2 ? (
+                            <span className="text-zinc-600 dark:text-zinc-400 font-black">🥈 2</span>
+                          ) : item.rank === 3 ? (
+                            <span className="text-amber-700 dark:text-amber-600 font-black">🥉 3</span>
+                          ) : (
+                            <span className="text-zinc-500">#{item.rank}</span>
+                          )
                         ) : (
-                          <span className="text-zinc-500">#{item.rank}</span>
+                          <span className="text-zinc-400 dark:text-zinc-500 font-bold" title="Must reach minimum matches to qualify for rank">—</span>
                         )}
                       </td>
 
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <div className="w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-extrabold text-xs flex items-center justify-center shrink-0">
                             {item.full_name.charAt(0)}
@@ -296,17 +300,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                       </td>
 
-                      <td className="py-3 px-3 text-center font-bold">{item.total_matches}</td>
-                      <td className="py-3 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 px-3 text-center font-bold whitespace-nowrap">{item.total_matches}</td>
+                      <td className="py-3 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                         {item.wins_1st}
                       </td>
-                      <td className="py-3 px-3 text-center">{item.win_pct}%</td>
-                      <td className="py-3 px-3 text-right font-black text-amber-600 dark:text-amber-400 text-sm">
+                      <td className="py-3 px-3 text-center whitespace-nowrap">{item.win_pct}%</td>
+                      <td className="py-3 px-3 text-right font-black text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
                         {item.average_score.toFixed(2)}
                       </td>
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
+                          className={`inline-block px-2 py-0.5 text-[10px] font-extrabold rounded-full whitespace-nowrap ${
                             item.is_qualified
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60'
                               : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-transparent'

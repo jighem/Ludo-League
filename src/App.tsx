@@ -18,7 +18,7 @@ import { LoginModal } from './components/LoginModal';
 import { FirstAdminSetup } from './components/FirstAdminSetup';
 
 function MainApp() {
-  const { needsSetup, loading } = useAuth();
+  const { needsSetup, loading, user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
 
@@ -94,9 +94,25 @@ function MainApp() {
       case 'awards':
         return <MonthlyAwardsPage onSelectPlayer={handleSelectPlayer} />;
       case 'settings':
-        return <SettingsPage />;
+        return user?.role === 'admin' ? (
+          <SettingsPage />
+        ) : (
+          <Dashboard
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onSelectPlayer={handleSelectPlayer}
+            onNavigateTab={setActiveTab}
+          />
+        );
       case 'installation':
-        return <InstallationPage />;
+        return user?.role === 'admin' ? (
+          <InstallationPage />
+        ) : (
+          <Dashboard
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onSelectPlayer={handleSelectPlayer}
+            onNavigateTab={setActiveTab}
+          />
+        );
       default:
         return (
           <Dashboard

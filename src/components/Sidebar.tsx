@@ -28,8 +28,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     { id: 'head-to-head', label: 'Head-to-Head', icon: Swords },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'awards', label: 'Awards & History', icon: Award },
-    ...(user?.role === 'admin' ? [{ id: 'settings', label: 'Admin Settings', icon: Settings }] : []),
-    { id: 'installation', label: 'Installation Guide', icon: BookOpen }
+    ...(user?.role === 'admin'
+      ? [
+          { id: 'settings', label: 'Admin Settings', icon: Settings },
+          { id: 'installation', label: 'Installation Guide', icon: BookOpen }
+        ]
+      : [])
   ];
 
   return (

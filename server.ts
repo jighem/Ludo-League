@@ -50,14 +50,12 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Resolve distPath dynamically to work whether running via ts-node at root or dist/server.cjs
+    // Resolve distPath dynamically to point strictly to compiled output directory
     let distPath = path.join(process.cwd(), 'dist');
     if (fs.existsSync(path.join(__dirname, 'index.html'))) {
       distPath = __dirname;
     } else if (fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))) {
       distPath = path.join(process.cwd(), 'dist');
-    } else if (fs.existsSync(path.join(process.cwd(), 'index.html'))) {
-      distPath = process.cwd();
     }
 
     // Serve static files from distPath

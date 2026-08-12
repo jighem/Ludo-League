@@ -158,9 +158,10 @@ export const InstallationPage: React.FC = () => {
             <div className="space-y-2 text-xs text-zinc-300 leading-relaxed">
               <p>Under <strong>Websites & Domains</strong> &rarr; <strong>Node.js</strong>:</p>
               <ul className="space-y-1 list-disc list-inside text-zinc-400 font-mono">
-                <li><strong className="text-zinc-200">Node.js Version:</strong> 18.x or 20.x</li>
+                <li><strong className="text-zinc-200">Node.js Version:</strong> 18.x, 20.x, or 24.x</li>
                 <li><strong className="text-zinc-200">Application Mode:</strong> production</li>
-                <li><strong className="text-zinc-200">Application Root:</strong> /httpdocs</li>
+                <li><strong className="text-zinc-200">Application Root:</strong> /ludo.udaanhost.com</li>
+                <li><strong className="text-zinc-200">Document Root:</strong> /ludo.udaanhost.com/dist <span className="text-amber-400 font-sans font-bold">(CRITICAL)</span></li>
                 <li><strong className="text-zinc-200">Application Startup File:</strong> dist/server.cjs</li>
               </ul>
             </div>

@@ -331,7 +331,8 @@ If you are hosting **Ludo League** on a web host or VPS managed with **Plesk Obs
 3. Set the following Node.js configurations:
    - **Node.js Version:** Select **18.x**, **20.x**, or **24.x**
    - **Application Mode:** `production`
-   - **Application Root:** `/ludo.udaanhost.com` (or your domain root)
+   - **Application Root:** `/ludo.udaanhost.com` (your domain folder)
+   - **Document Root:** `/ludo.udaanhost.com/dist` *(CRITICAL: Must point to `/dist` so Plesk serves the compiled static build rather than the uncompiled source `index.html`)*
    - **Application Startup File:** `dist/server.cjs`
 4. Under **Environment Variables** (`[specify]`), add:
    - `JWT_SECRET` = `your_secure_jwt_secret_here`

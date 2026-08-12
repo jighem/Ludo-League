@@ -240,6 +240,9 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
       const allResults = await query<any>(resultsSql, matchIds);
 
       matches.forEach((m) => {
+        if (m.match_date && String(m.match_date).includes('T')) {
+          m.match_date = String(m.match_date).split('T')[0];
+        }
         m.results = allResults.filter((r) => r.match_id === m.id);
       });
     }

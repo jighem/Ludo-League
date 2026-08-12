@@ -170,6 +170,9 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
     let latestMatch = null;
     if (latestMatchRes.length > 0) {
       latestMatch = latestMatchRes[0];
+      if (latestMatch.match_date && String(latestMatch.match_date).includes('T')) {
+        latestMatch.match_date = String(latestMatch.match_date).split('T')[0];
+      }
       latestMatch.results = await query<any>(
         `SELECT mr.*, p.full_name as player_name, p.nickname as player_nickname, p.profile_photo
          FROM match_results mr JOIN players p ON mr.player_id = p.id
@@ -293,7 +296,11 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
       ORDER BY m.match_date DESC, m.match_time DESC, m.id DESC
       LIMIT 20
     `;
-    const recentMatches = await query<any>(recentMatchesSql, [playerId]);
+    const rawRecentMatches = await query<any>(recentMatchesSql, [playerId]);
+    const recentMatches = rawRecentMatches.map((m) => ({
+      ...m,
+      match_date: m.match_date && String(m.match_date).includes('T') ? String(m.match_date).split('T')[0] : String(m.match_date || '')
+    }));
 
     // Calculate streaks
     let currentWinStreak = 0;
@@ -469,7 +476,11 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
       ORDER BY m.match_date DESC, m.match_time DESC, m.id DESC
     `;
 
-    const encounters = await query<any>(sharedMatchesSql, [player1Id, player2Id]);
+    const rawEncounters = await query<any>(sharedMatchesSql, [player1Id, player2Id]);
+    const encounters = rawEncounters.map((e) => ({
+      ...e,
+      match_date: e.match_date && String(e.match_date).includes('T') ? String(e.match_date).split('T')[0] : String(e.match_date || '')
+    }));
 
     let matchesTogether = encounters.length;
     let p1AheadCount = 0;
@@ -765,7 +776,7 @@ router.get('/charts', optionalAuthenticateToken, async (req, res) => {
       const slice = rawTrend.slice(start, idx + 1);
       const avgPts = slice.reduce((acc, curr) => acc + Number(curr.points_awarded), 0) / slice.length;
       return {
-        match_date: row.match_date,
+        match_date: row.match_date && String(row.match_date).includes('T') ? String(row.match_date).split('T')[0] : String(row.match_date || ''),
         friendly_id: row.friendly_id,
         points: Number(row.points_awarded),
         position: row.position,
@@ -818,7 +829,8 @@ router.get('/export', optionalAuthenticateToken, async (req, res) => {
 
       let csv = 'Match ID,Date,Time,Player Count,Player Name,Rank,Points Awarded,Notes\n';
       rows.forEach((r) => {
-        csv += `"${r.friendly_id}",${r.match_date},${r.match_time},${r.player_count},"${r.full_name}",${r.position},${r.points_awarded},"${r.notes || ''}"\n`;
+        const dStr = r.match_date && String(r.match_date).includes('T') ? String(r.match_date).split('T')[0] : String(r.match_date || '');
+        csv += `"${r.friendly_id}",${dStr},${r.match_time},${r.player_count},"${r.full_name}",${r.position},${r.points_awarded},"${r.notes || ''}"\n`;
       });
 
       res.setHeader('Content-Type', 'text/csv');

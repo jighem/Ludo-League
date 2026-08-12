@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { ShieldCheck, User, Lock, Mail, UserPlus, AlertCircle } from 'lucide-react';
 
 export const FirstAdminSetup: React.FC = () => {
   const { setupFirstAdmin } = useAuth();
+  const { appName } = useSettings();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -52,7 +54,7 @@ export const FirstAdminSetup: React.FC = () => {
           </div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">System Initialization</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Welcome to Ludo League! Register the primary administrator account to secure your league database.
+            Welcome to {appName}! Register the primary administrator account to secure your league database.
           </p>
         </div>
 

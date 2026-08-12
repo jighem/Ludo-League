@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
+import { useSettings } from '../context/SettingsContext';
 import { X, UserPlus, AlertCircle } from 'lucide-react';
 
 interface AddPlayerModalProps {
@@ -10,6 +11,7 @@ interface AddPlayerModalProps {
 }
 
 export const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ isOpen, onClose, onPlayerAdded }) => {
+  const { appName } = useSettings();
   const [fullName, setFullName] = useState('');
   const [nickname, setNickname] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -69,7 +71,7 @@ export const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ isOpen, onClose,
           </div>
           <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Register New Player</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Add player to the Ludo League roster</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Add player to the {appName} roster</p>
           </div>
         </div>
 

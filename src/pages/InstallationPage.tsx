@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useSettings } from '../context/SettingsContext';
 import { BookOpen, Terminal, CheckCircle, Server, Database, Globe, Layers, Cpu, ShieldCheck } from 'lucide-react';
 
 export const InstallationPage: React.FC = () => {
+  const { appName } = useSettings();
   const [activeTab, setActiveTab] = useState<'standard' | 'plesk'>('standard');
 
   return (
@@ -15,7 +17,7 @@ export const InstallationPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-zinc-100 tracking-tight">Installation & Hosting Guide</h1>
-              <p className="text-xs text-zinc-400">Step-by-step documentation for deploying Ludo League on Linux VPS or Plesk Control Panel</p>
+              <p className="text-xs text-zinc-400">Step-by-step documentation for deploying {appName} on Linux VPS or Plesk Control Panel</p>
             </div>
           </div>
 

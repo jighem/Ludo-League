@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
+import { formatDateStr } from '../utils/date';
 import { Swords, Users, Trophy, ChevronRight, BarChart2 } from 'lucide-react';
 
 export const HeadToHeadPage: React.FC = () => {
@@ -248,7 +249,7 @@ export const HeadToHeadPage: React.FC = () => {
                           return (
                             <tr key={enc.id}>
                               <td className="py-3 px-3 font-mono font-bold text-amber-600">{enc.friendly_id}</td>
-                              <td className="py-3 px-3 text-slate-500">{enc.match_date}</td>
+                              <td className="py-3 px-3 text-slate-500">{formatDateStr(enc.match_date)}</td>
                               <td className="py-3 px-3 text-center font-bold">
                                 {p1Pos === 1 ? '🥇 1st' : p1Pos === 2 ? '🥈 2nd' : p1Pos === 3 ? '🥉 3rd' : '4th'} (+{enc.p1_pts} pts)
                               </td>

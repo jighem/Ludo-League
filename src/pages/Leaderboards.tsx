@@ -57,15 +57,15 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900/80 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
         <div>
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Trophy className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Official Standings</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Official Standings</h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Calculated strictly by <span className="font-bold">Average Score = Total Points / Matches</span>
               </p>
             </div>
@@ -75,7 +75,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
         <div className="flex items-center space-x-3">
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer border border-zinc-200 dark:border-transparent"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -84,13 +84,13 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
       </div>
 
       {/* Tabs & Filters */}
-      <div className="bg-zinc-900/80 rounded-2xl p-4 border border-zinc-800/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900/80 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
         {/* Type Tabs */}
-        <div className="flex bg-zinc-800/80 p-1 rounded-xl border border-zinc-700/50">
+        <div className="flex bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
           <button
             onClick={() => setTab('monthly')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              tab === 'monthly' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-400 hover:text-zinc-100'
+              tab === 'monthly' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             Monthly
@@ -98,7 +98,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
           <button
             onClick={() => setTab('yearly')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              tab === 'yearly' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-400 hover:text-zinc-100'
+              tab === 'yearly' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             Yearly
@@ -106,7 +106,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
           <button
             onClick={() => setTab('alltime')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              tab === 'alltime' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-400 hover:text-zinc-100'
+              tab === 'alltime' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             All-Time
@@ -117,23 +117,23 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
         <div className="flex items-center space-x-2">
           {tab === 'monthly' && (
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-zinc-400" />
+              <Calendar className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-bold text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
               />
             </div>
           )}
 
           {tab === 'yearly' && (
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-zinc-400" />
+              <Calendar className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-bold text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
               >
                 {[2026, 2025, 2024].map((y) => (
                   <option key={y} value={y}>{y}</option>
@@ -146,34 +146,34 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
 
       {/* Minimum Qualification Notice */}
       {tab === 'monthly' && (
-        <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center space-x-3 text-xs text-amber-300">
-          <Info className="w-5 h-5 shrink-0 text-amber-400" />
+        <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center space-x-3 text-xs text-amber-800 dark:text-amber-300">
+          <Info className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
-            <strong className="font-bold text-amber-400">Minimum Qualification Rule:</strong> Players require at least{' '}
-            <strong className="text-amber-300 underline underline-offset-2">{minQualThreshold} matches</strong> in a calendar month to qualify for the Monthly Championship.
+            <strong className="font-bold text-amber-700 dark:text-amber-400">Minimum Qualification Rule:</strong> Players require at least{' '}
+            <strong className="text-amber-800 dark:text-amber-300 underline underline-offset-2">{minQualThreshold} matches</strong> in a calendar month to qualify for the Monthly Championship.
             Qualified players rank above unqualified players in official standings.
           </span>
         </div>
       )}
 
       {/* Main Leaderboard Table */}
-      <div className="bg-zinc-900/80 rounded-3xl border border-zinc-800/80 shadow-xl overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900/80 rounded-3xl border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl overflow-hidden transition-colors">
         {loading ? (
-          <div className="py-12 text-center text-zinc-400">
+          <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
             <div className="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-            <p className="text-xs font-semibold text-zinc-300">Calculating official database rankings...</p>
+            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Calculating official database rankings...</p>
           </div>
         ) : leaderboard.length === 0 ? (
-          <div className="py-16 text-center text-zinc-400 space-y-2">
-            <Trophy className="w-12 h-12 mx-auto text-zinc-700" />
-            <p className="text-base font-bold text-zinc-300">No standings available for this period.</p>
+          <div className="py-16 text-center text-zinc-500 dark:text-zinc-400 space-y-2">
+            <Trophy className="w-12 h-12 mx-auto text-zinc-400 dark:text-zinc-700" />
+            <p className="text-base font-bold text-zinc-800 dark:text-zinc-300">No standings available for this period.</p>
             <p className="text-xs text-zinc-500">Record matches in this date window to view dynamic rankings.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="bg-zinc-800/60 text-zinc-400 font-extrabold uppercase tracking-wider text-[10px] border-b border-zinc-800">
+                <tr className="bg-zinc-50 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400 font-extrabold uppercase tracking-wider text-[10px] border-b border-zinc-200 dark:border-zinc-800">
                   <th className="py-3 px-4">Rank</th>
                   <th className="py-3 px-4">Player</th>
                   <th className="py-3 px-4 text-center">Played</th>
@@ -190,62 +190,62 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-zinc-800/60 font-medium text-zinc-200">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-800 dark:text-zinc-200">
                 {leaderboard.map((item) => (
                   <tr
                     key={item.player_id}
                     onClick={() => onSelectPlayer(item.player_id)}
-                    className="hover:bg-zinc-800/50 cursor-pointer transition-colors"
+                    className="hover:bg-zinc-100/80 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors"
                   >
                     <td className="py-3.5 px-4 font-black text-sm">
                       {item.rank === 1 ? (
-                        <span className="text-amber-400 font-black">🥇 1</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-black">🥇 1</span>
                       ) : item.rank === 2 ? (
-                        <span className="text-zinc-300 font-black">🥈 2</span>
+                        <span className="text-zinc-600 dark:text-zinc-300 font-black">🥈 2</span>
                       ) : item.rank === 3 ? (
-                        <span className="text-amber-600 font-black">🥉 3</span>
+                        <span className="text-amber-700 dark:text-amber-600 font-black">🥉 3</span>
                       ) : (
-                        <span className="text-zinc-400 font-bold">#{item.rank}</span>
+                        <span className="text-zinc-500 dark:text-zinc-400 font-bold">#{item.rank}</span>
                       )}
                     </td>
 
                     <td className="py-3.5 px-4">
                       <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold text-xs flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold text-xs flex items-center justify-center shrink-0">
                           {item.full_name.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-extrabold text-zinc-100 flex items-center space-x-1.5">
+                          <div className="font-extrabold text-zinc-900 dark:text-zinc-100 flex items-center space-x-1.5">
                             <span>{item.full_name}</span>
                             {item.is_champion && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-bold">
                                 🏆 Champion
                               </span>
                             )}
                           </div>
                           {item.nickname && (
-                            <div className="text-[10px] text-zinc-400">{item.nickname}</div>
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400">{item.nickname}</div>
                           )}
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-200">{item.total_matches}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-emerald-400">{item.wins_1st}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-300">{item.pos_2nd}</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-300">{item.pos_3rd}</td>
-                    <td className="py-3.5 px-4 text-center text-red-400 font-bold">{item.last_place}</td>
-                    <td className="py-3.5 px-4 text-right font-bold text-zinc-200">{item.total_points.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-amber-400 text-sm">{item.average_score.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-200">{item.average_position.toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-zinc-200">{item.win_pct}%</td>
-                    <td className="py-3.5 px-4 text-center text-zinc-300">{item.podium_pct}%</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.total_matches}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{item.wins_1st}</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.pos_2nd}</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.pos_3rd}</td>
+                    <td className="py-3.5 px-4 text-center text-red-600 dark:text-red-400 font-bold">{item.last_place}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-zinc-800 dark:text-zinc-200">{item.total_points.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm">{item.average_score.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.average_position.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200">{item.win_pct}%</td>
+                    <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300">{item.podium_pct}%</td>
                     <td className="py-3.5 px-4 text-center">
                       <span
                         className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                           item.is_qualified
-                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80'
-                            : 'bg-zinc-800/90 text-zinc-400 border-zinc-700/60'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/80'
+                            : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/90 dark:text-zinc-400 dark:border-zinc-700/60'
                         }`}
                       >
                         {item.is_qualified ? 'Qualified' : 'Not Qualified'}

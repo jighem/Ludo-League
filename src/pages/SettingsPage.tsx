@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
+import { useSettings } from '../context/SettingsContext';
 import { User } from '../types';
 import { Shield, Key, Database, RefreshCw, AlertCircle, CheckCircle, UserPlus, Sliders, Trophy } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
+  const { refreshSettings } = useSettings();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,6 +66,7 @@ export const SettingsPage: React.FC = () => {
         })
       });
       setSuccessMsg('League settings updated successfully!');
+      await refreshSettings();
       fetchLeagueSettings();
     } catch (err: any) {
       setError(err.message || 'Failed to update league settings.');

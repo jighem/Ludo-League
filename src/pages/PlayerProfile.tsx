@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
+import { formatDateStr } from '../utils/date';
 import {
   User,
   Trophy,
@@ -129,7 +130,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
               </span>
             </div>
             {player.nickname && <p className="text-xs font-bold text-zinc-400">"{player.nickname}"</p>}
-            <p className="text-xs text-zinc-500 mt-1 font-medium">Joined {player.date_joined}</p>
+            <p className="text-xs text-zinc-500 mt-1 font-medium">Joined {formatDateStr(player.date_joined)}</p>
           </div>
         </div>
 
@@ -179,7 +180,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
               <div
                 key={idx}
                 className="flex flex-col items-center justify-center p-2 rounded-2xl bg-zinc-950 border border-zinc-800 min-w-12 shadow-inner"
-                title={`Match ${m.friendly_id} on ${m.match_date}: Rank ${m.position} (+${m.points_awarded} pts)`}
+                title={`Match ${m.friendly_id} on ${formatDateStr(m.match_date)}: Rank ${m.position} (+${m.points_awarded} pts)`}
               >
                 <span className="text-xl">
                   {m.position === 1 ? '🥇' : m.position === 2 ? '🥈' : m.position === 3 ? '🥉' : '4️⃣'}

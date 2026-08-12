@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
@@ -19,6 +20,7 @@ import { FirstAdminSetup } from './components/FirstAdminSetup';
 
 function MainApp() {
   const { needsSetup, loading, user } = useAuth();
+  const { appName } = useSettings();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
 
@@ -129,20 +131,20 @@ function MainApp() {
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-bold text-zinc-400">Initializing Ludo League...</p>
+          <p className="text-sm font-bold text-zinc-400">Initializing {appName}...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-slate-100 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       {/* First Admin Setup Modal overlay if system not setup */}
       {needsSetup && <FirstAdminSetup />}
 
       {/* Main App Navigation Header */}
       <Header
-        appName="Ludo League"
+        appName={appName}
         onOpenNewMatch={() => setIsNewMatchOpen(true)}
         onOpenLogin={() => setIsLoginOpen(true)}
         activeTab={activeTab}
@@ -189,7 +191,9 @@ function MainApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <MainApp />
+      <SettingsProvider>
+        <MainApp />
+      </SettingsProvider>
     </AuthProvider>
   );
 }

@@ -46,6 +46,7 @@ export async function initDatabase() {
         queueLimit: 0,
         multipleStatements: true,
         timezone: '+00:00',
+        dateStrings: true,
         connectTimeout: 10000
       });
 

@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   ];
 
   return (
-    <nav className="bg-zinc-900/80 rounded-3xl p-3 border border-zinc-800/80 shadow-xl h-fit w-full md:w-64 shrink-0">
+    <nav className="bg-white dark:bg-zinc-900/80 rounded-3xl p-3 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl h-fit w-full md:w-64 shrink-0 transition-colors">
       <div className="flex md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 md:space-y-1.5 scrollbar-none">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -49,11 +49,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
               onClick={() => setActiveTab(item.id)}
               className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl font-semibold text-xs transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-400 border border-amber-500/30 shadow-md shadow-amber-500/5 font-extrabold'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 border border-transparent'
+                  ? 'bg-amber-500/10 dark:bg-gradient-to-r dark:from-amber-500/20 dark:to-orange-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 shadow-xs font-extrabold'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 border border-transparent'
               }`}
             >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-zinc-500'}`} />
+              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`} />
               <span>{item.label}</span>
             </button>
           );

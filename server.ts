@@ -50,14 +50,33 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Resolve distPath dynamically to work whether running via ts-node at root or dist/server.cjs
+    let distPath = path.join(process.cwd(), 'dist');
+    if (fs.existsSync(path.join(__dirname, 'index.html'))) {
+      distPath = __dirname;
+    } else if (fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))) {
+      distPath = path.join(process.cwd(), 'dist');
+    } else if (fs.existsSync(path.join(process.cwd(), 'index.html'))) {
+      distPath = process.cwd();
+    }
+
+    // Serve static files from distPath
+    app.use(express.static(distPath, {
+      index: false,
+      maxAge: '1y'
+    }));
+
     app.get('*', (req, res) => {
+      // Avoid returning index.html for missing static assets to prevent MIME type mismatch errors in browser
+      if (req.path.startsWith('/assets/') || /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot|json|map)$/i.test(req.path)) {
+        return res.status(404).send(`Asset ${req.path} not found in ${distPath}`);
+      }
+
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        res.status(404).send('Application build output (dist/index.html) not found. Please run "npm run build" or "Run script -> build" in Plesk.');
+        res.status(404).send(`Application build output (${indexPath}) not found. Please run "npm run build" or "Run script -> build" in Plesk.`);
       }
     });
   }

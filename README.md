@@ -326,26 +326,27 @@ If you are hosting **Ludo League** on a web host or VPS managed with **Plesk Obs
 4. Once created, click **Import Dump** (or open **phpMyAdmin**) and select the `server/schema.sql` file provided in this repository to populate the schema and initial seed data.
 
 ### Step 2: Enable & Configure Node.js for Domain
-1. In Plesk, go to **Websites & Domains** and select your target domain/subdomain.
-2. Click on the **Node.js** icon. (If not visible, request your server administrator to install the Plesk Node.js extension).
+1. In Plesk, go to **Websites & Domains** and select your target domain/subdomain (`ludo.udaanhost.com`).
+2. Click on the **Node.js** icon.
 3. Set the following Node.js configurations:
-   - **Node.js Version:** Select **18.x** or **20.x**
+   - **Node.js Version:** Select **18.x**, **20.x**, or **24.x**
    - **Application Mode:** `production`
-   - **Application Root:** `/httpdocs` (or your target subfolder)
+   - **Application Root:** `/ludo.udaanhost.com` (or your domain root)
    - **Application Startup File:** `dist/server.cjs`
-4. Under **Environment Variables**, add:
+4. Under **Environment Variables** (`[specify]`), add:
    - `JWT_SECRET` = `your_secure_jwt_secret_here`
-   - `MYSQL_HOST` = `127.0.0.1` (or `localhost`)
+   - `MYSQL_HOST` = `127.0.0.1` (or `localhost` for local Plesk MySQL)
    - `MYSQL_PORT` = `3306`
-   - `MYSQL_USER` = `your_plesk_db_user`
-   - `MYSQL_PASSWORD` = `your_plesk_db_password`
-   - `MYSQL_DATABASE` = `ludo_league`
+   - `MYSQL_USER` = `ludo_score`
+   - `MYSQL_PASSWORD` = `your_db_password`
+   - `MYSQL_DATABASE` = `ludo_score`
 
-### Step 3: Deploy & Build Code
-1. Upload the application source files via **Plesk File Manager**, Git integration, or FTP into your domain's `httpdocs` directory.
+### Step 3: Deploy, Build & Launch
+1. Upload/pull the updated source files (including `server.ts` and `server/db.ts`) into your domain's folder.
 2. In the Plesk **Node.js** control panel:
-   - Click the **NPM Install** button to install all dependencies.
-   - Click **Run Script** -> type `build` (or open **Plesk Terminal / SSH** and run `npm run build`). This compiles the React frontend bundle and packages `server.ts` into `dist/server.cjs`.
+   - Click **+ NPM install** to install all required modules.
+   - Click **▷ Run script** -> type `build` to generate the compiled `dist/` frontend and `dist/server.cjs`.
+   - Click **↺ Restart App** to start the application.
 
 ### Step 4: Restart & Test Application
 1. Click **Restart App** in the Plesk Node.js panel.

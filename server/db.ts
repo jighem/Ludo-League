@@ -32,7 +32,7 @@ export async function initDatabase() {
   const database = process.env.MYSQL_DATABASE;
   const port = Number(process.env.MYSQL_PORT || 3306);
 
-  if (host && database && host !== 'localhost') {
+  if (host && database) {
     try {
       console.log(`Connecting to MySQL database at ${host}:${port}/${database}...`);
       const pool = mysql.createPool({
@@ -45,7 +45,8 @@ export async function initDatabase() {
         connectionLimit: 10,
         queueLimit: 0,
         multipleStatements: true,
-        timezone: '+00:00'
+        timezone: '+00:00',
+        connectTimeout: 10000
       });
 
       // Test connection
@@ -60,7 +61,11 @@ export async function initDatabase() {
       const schemaSqlPath = path.join(process.cwd(), 'server', 'schema.sql');
       if (fs.existsSync(schemaSqlPath)) {
         const schemaSql = fs.readFileSync(schemaSqlPath, 'utf8');
-        await mysqlPool.query(schemaSql);
+        try {
+          await mysqlPool.query(schemaSql);
+        } catch (schemaErr) {
+          console.warn('Notice during schema initialization on MySQL:', (schemaErr as Error).message);
+        }
       }
       return;
     } catch (err) {

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
 
@@ -14,7 +15,7 @@ import auditRoutes from './server/routes/auditRoutes';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   // Middleware
   app.use(express.json({ limit: '10mb' }));
@@ -22,7 +23,11 @@ async function startServer() {
   app.use(cookieParser());
 
   // Initialize DB
-  await initDatabase();
+  try {
+    await initDatabase();
+  } catch (err) {
+    console.error('Database initialization warning:', err);
+  }
 
   // API Routes
   app.use('/api/auth', authRoutes);
@@ -48,13 +53,25 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Application build output (dist/index.html) not found. Please run "npm run build" or "Run script -> build" in Plesk.');
+      }
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Ludo League Server listening on http://0.0.0.0:${PORT}`);
-  });
+  // Plesk Phusion Passenger & standard node port listener
+  if (process.env.PORT) {
+    app.listen(process.env.PORT, () => {
+      console.log(`Ludo League Server listening on process.env.PORT (${process.env.PORT})`);
+    });
+  } else {
+    app.listen(3000, '0.0.0.0', () => {
+      console.log('Ludo League Server listening on http://0.0.0.0:3000');
+    });
+  }
 }
 
 startServer().catch((err) => {

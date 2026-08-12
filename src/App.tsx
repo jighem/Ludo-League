@@ -1,0 +1,179 @@
+import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './pages/Dashboard';
+import { Leaderboards } from './pages/Leaderboards';
+import { MatchHistory } from './pages/MatchHistory';
+import { PlayersPage } from './pages/PlayersPage';
+import { PlayerProfile } from './pages/PlayerProfile';
+import { HeadToHeadPage } from './pages/HeadToHeadPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { MonthlyAwardsPage } from './pages/MonthlyAwardsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { InstallationPage } from './pages/InstallationPage';
+import { NewMatchModal } from './components/NewMatchModal';
+import { AddPlayerModal } from './components/AddPlayerModal';
+import { LoginModal } from './components/LoginModal';
+import { FirstAdminSetup } from './components/FirstAdminSetup';
+
+function MainApp() {
+  const { needsSetup, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+
+  // Modals
+  const [isNewMatchOpen, setIsNewMatchOpen] = useState(false);
+  const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  // Dark Mode preference
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('ludo_theme');
+    if (saved) return saved === 'dark';
+    return true; // Default to dark Bento Grid theme
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('ludo_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('ludo_theme', 'light');
+    }
+  }, [darkMode]);
+
+  const handleSelectPlayer = (playerId: number) => {
+    setSelectedPlayerId(playerId);
+    setActiveTab('player-profile');
+  };
+
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <Dashboard
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onSelectPlayer={handleSelectPlayer}
+            onNavigateTab={setActiveTab}
+          />
+        );
+      case 'leaderboards':
+        return (
+          <Leaderboards
+            onSelectPlayer={handleSelectPlayer}
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+          />
+        );
+      case 'matches':
+        return (
+          <MatchHistory
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onSelectPlayer={handleSelectPlayer}
+          />
+        );
+      case 'players':
+        return (
+          <PlayersPage
+            onSelectPlayer={handleSelectPlayer}
+            onOpenAddPlayer={() => setIsAddPlayerOpen(true)}
+          />
+        );
+      case 'player-profile':
+        return (
+          <PlayerProfile
+            playerId={selectedPlayerId}
+            onBack={() => setActiveTab('players')}
+          />
+        );
+      case 'head-to-head':
+        return <HeadToHeadPage />;
+      case 'analytics':
+        return <AnalyticsPage />;
+      case 'awards':
+        return <MonthlyAwardsPage onSelectPlayer={handleSelectPlayer} />;
+      case 'settings':
+        return <SettingsPage />;
+      case 'installation':
+        return <InstallationPage />;
+      default:
+        return (
+          <Dashboard
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onSelectPlayer={handleSelectPlayer}
+            onNavigateTab={setActiveTab}
+          />
+        );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-bold text-zinc-400">Initializing Ludo League...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+      {/* First Admin Setup Modal overlay if system not setup */}
+      {needsSetup && <FirstAdminSetup />}
+
+      {/* Main App Navigation Header */}
+      <Header
+        appName="Ludo League"
+        onOpenNewMatch={() => setIsNewMatchOpen(true)}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+
+      {/* Main Container Layout */}
+      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row p-4 sm:p-6 gap-6">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        <main className="flex-1 min-w-0">
+          {renderActiveTab()}
+        </main>
+      </div>
+
+      {/* Modals */}
+      <NewMatchModal
+        isOpen={isNewMatchOpen}
+        onClose={() => setIsNewMatchOpen(false)}
+        onMatchSaved={() => {
+          setIsNewMatchOpen(false);
+          // Force refresh page if needed or let components refetch
+        }}
+      />
+
+      <AddPlayerModal
+        isOpen={isAddPlayerOpen}
+        onClose={() => setIsAddPlayerOpen(false)}
+        onPlayerAdded={() => {
+          setIsAddPlayerOpen(false);
+        }}
+      />
+
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
+}

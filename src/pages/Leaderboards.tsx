@@ -1,0 +1,263 @@
+import React, { useState, useEffect } from 'react';
+import { LeaderboardItem } from '../types';
+import { apiRequest } from '../api/client';
+import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck } from 'lucide-react';
+
+interface LeaderboardsProps {
+  onSelectPlayer: (playerId: number) => void;
+}
+
+export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) => {
+  const [tab, setTab] = useState<'monthly' | 'yearly' | 'alltime'>('monthly');
+
+  const now = new Date();
+  const currentMonthStr = now.toISOString().split('T')[0].substring(0, 7);
+  const currentYearStr = String(now.getFullYear());
+
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
+  const [selectedYear, setSelectedYear] = useState(currentYearStr);
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
+  const [minQualThreshold, setMinQualThreshold] = useState<number>(8);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [tab, selectedMonth, selectedYear]);
+
+  const fetchLeaderboard = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      let endpoint = '/stats/leaderboard?';
+      if (tab === 'monthly') {
+        endpoint += `month=${selectedMonth}`;
+      } else if (tab === 'yearly') {
+        endpoint += `year=${selectedYear}`;
+      }
+
+      const res = await apiRequest<{ leaderboard: LeaderboardItem[]; minQualificationThreshold: number }>(endpoint);
+      setLeaderboard(res.leaderboard);
+      setMinQualThreshold(res.minQualificationThreshold);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch leaderboard.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    let url = '/api/stats/export?type=leaderboard';
+    if (tab === 'monthly') url += `&month=${selectedMonth}`;
+    if (tab === 'yearly') url += `&year=${selectedYear}`;
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Official Standings</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Calculated strictly by <span className="font-bold">Average Score = Total Points / Matches</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs & Filters */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Type Tabs */}
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <button
+            onClick={() => setTab('monthly')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              tab === 'monthly' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setTab('yearly')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              tab === 'yearly' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            Yearly
+          </button>
+          <button
+            onClick={() => setTab('alltime')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              tab === 'alltime' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            All-Time
+          </button>
+        </div>
+
+        {/* Date Selector */}
+        <div className="flex items-center space-x-2">
+          {tab === 'monthly' && (
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+              />
+            </div>
+          )}
+
+          {tab === 'yearly' && (
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white"
+              >
+                {[2026, 2025, 2024].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Minimum Qualification Notice */}
+      {tab === 'monthly' && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center space-x-3 text-xs text-amber-800 dark:text-amber-300">
+          <Info className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            <strong className="font-bold">Minimum Qualification Rule:</strong> Players require at least{' '}
+            <strong>{minQualThreshold} matches</strong> in a calendar month to qualify for the Monthly Championship.
+            Qualified players rank above unqualified players in official standings.
+          </span>
+        </div>
+      )}
+
+      {/* Main Leaderboard Table */}
+      <div className="bg-zinc-900/80 rounded-3xl border border-zinc-800/80 shadow-xl overflow-hidden">
+        {loading ? (
+          <div className="py-12 text-center text-slate-400">
+            <div className="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+            <p className="text-xs font-semibold">Calculating official database rankings...</p>
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div className="py-16 text-center text-slate-400 space-y-2">
+            <Trophy className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700" />
+            <p className="text-base font-bold text-slate-700 dark:text-slate-300">No standings available for this period.</p>
+            <p className="text-xs text-slate-500">Record matches in this date window to view dynamic rankings.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800">
+                  <th className="py-3 px-4">Rank</th>
+                  <th className="py-3 px-4">Player</th>
+                  <th className="py-3 px-4 text-center">Played</th>
+                  <th className="py-3 px-4 text-center">1st (Wins)</th>
+                  <th className="py-3 px-4 text-center">2nd</th>
+                  <th className="py-3 px-4 text-center">3rd</th>
+                  <th className="py-3 px-4 text-center">Last</th>
+                  <th className="py-3 px-4 text-right">Total Pts</th>
+                  <th className="py-3 px-4 text-right">Avg Score</th>
+                  <th className="py-3 px-4 text-center">Avg Finish</th>
+                  <th className="py-3 px-4 text-center">Win %</th>
+                  <th className="py-3 px-4 text-center">Podium %</th>
+                  <th className="py-3 px-4 text-center">Qualification</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                {leaderboard.map((item) => (
+                  <tr
+                    key={item.player_id}
+                    onClick={() => onSelectPlayer(item.player_id)}
+                    className="hover:bg-amber-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                  >
+                    <td className="py-3.5 px-4 font-black text-sm">
+                      {item.rank === 1 ? (
+                        <span className="text-amber-500 font-black">🥇 1</span>
+                      ) : item.rank === 2 ? (
+                        <span className="text-slate-400 font-black">🥈 2</span>
+                      ) : item.rank === 3 ? (
+                        <span className="text-amber-700 font-black">🥉 3</span>
+                      ) : (
+                        <span className="text-slate-500">#{item.rank}</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center justify-center shrink-0">
+                          {item.full_name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-slate-900 dark:text-white flex items-center space-x-1.5">
+                            <span>{item.full_name}</span>
+                            {item.is_champion && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-bold">
+                                🏆 Champion
+                              </span>
+                            )}
+                          </div>
+                          {item.nickname && (
+                            <div className="text-[10px] text-slate-400">{item.nickname}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 text-center font-bold">{item.total_matches}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{item.wins_1st}</td>
+                    <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400">{item.pos_2nd}</td>
+                    <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400">{item.pos_3rd}</td>
+                    <td className="py-3.5 px-4 text-center text-red-500 dark:text-red-400">{item.last_place}</td>
+                    <td className="py-3.5 px-4 text-right font-bold text-slate-800 dark:text-slate-200">{item.total_points.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm">{item.average_score.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold">{item.average_position.toFixed(2)}</td>
+                    <td className="py-3.5 px-4 text-center font-bold">{item.win_pct}%</td>
+                    <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400">{item.podium_pct}%</td>
+                    <td className="py-3.5 px-4 text-center">
+                      <span
+                        className={`px-2.5 py-0.5 text-[10px] font-black rounded-full ${
+                          item.is_qualified
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                        }`}
+                      >
+                        {item.is_qualified ? 'Qualified' : 'Not Qualified'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

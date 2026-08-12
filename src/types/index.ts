@@ -1,0 +1,102 @@
+export interface User {
+  id: number;
+  name: string;
+  username: string;
+  email: string | null;
+  role: 'admin' | 'operator' | 'viewer';
+  is_active: number;
+  created_at?: string;
+}
+
+export interface Player {
+  id: number;
+  full_name: string;
+  nickname: string | null;
+  profile_photo: string | null;
+  mobile_number: string | null;
+  email: string | null;
+  date_joined: string;
+  is_active: number;
+  total_matches?: number;
+  created_at?: string;
+}
+
+export interface MatchResultInput {
+  player_id: number;
+  position: number;
+}
+
+export interface MatchResult {
+  id: number;
+  match_id: number;
+  player_id: number;
+  player_name?: string;
+  player_nickname?: string;
+  profile_photo?: string;
+  position: number;
+  points_awarded: number;
+}
+
+export interface Match {
+  id: number;
+  friendly_id: string;
+  match_date: string;
+  match_time: string;
+  player_count: number;
+  notes: string | null;
+  created_by: number | null;
+  created_by_name?: string;
+  results: MatchResult[];
+  created_at: string;
+}
+
+export interface LeaderboardItem {
+  player_id: number;
+  full_name: string;
+  nickname: string | null;
+  profile_photo: string | null;
+  is_active: number;
+  total_matches: number;
+  total_points: number;
+  average_score: number;
+  average_position: number;
+  wins_1st: number;
+  pos_2nd: number;
+  pos_3rd: number;
+  pos_4th: number;
+  last_place: number;
+  podium_finishes: number;
+  win_pct: number;
+  podium_pct: number;
+  is_qualified: boolean;
+  rank: number;
+  is_champion: boolean;
+}
+
+export interface ScoringRule {
+  id: number;
+  player_count: number;
+  pos1_points: number;
+  pos2_points: number;
+  pos3_points: number;
+  pos4_points: number;
+}
+
+export interface AppSettings {
+  minMatchesQualification: number;
+  appName: string;
+  timezone: string;
+  closedMonths: string[];
+}
+
+export interface AuditLog {
+  id: number;
+  user_id: number | null;
+  username: string | null;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  details: string | null;
+  ip_address: string | null;
+  created_at: string;
+}

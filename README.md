@@ -304,7 +304,7 @@ Access the app in your browser at `http://localhost:3000`.
 
 ---
 
-### Step 5: PM2 Process Management (Production Deployment)
+### Step 5: PM2 Process Management (Production VPS Deployment)
 
 ```bash
 npm install -g pm2
@@ -312,3 +312,43 @@ pm2 start dist/server.cjs --name "ludo-league"
 pm2 save
 pm2 startup
 ```
+
+---
+
+## 4. Plesk Control Panel Installation Guide
+
+If you are hosting **Ludo League** on a web host or VPS managed with **Plesk Obsidian / Onyx**, follow these steps to deploy the application via Plesk's built-in **Node.js** and **Database** managers:
+
+### Step 1: Create Database in Plesk
+1. Log in to your **Plesk Control Panel**.
+2. Navigate to **Databases** in the left sidebar and click **Add Database**.
+3. Set **Database Name** (e.g., `ludo_league`), **Database User Name**, and **Password**.
+4. Once created, click **Import Dump** (or open **phpMyAdmin**) and select the `server/schema.sql` file provided in this repository to populate the schema and initial seed data.
+
+### Step 2: Enable & Configure Node.js for Domain
+1. In Plesk, go to **Websites & Domains** and select your target domain/subdomain.
+2. Click on the **Node.js** icon. (If not visible, request your server administrator to install the Plesk Node.js extension).
+3. Set the following Node.js configurations:
+   - **Node.js Version:** Select **18.x** or **20.x**
+   - **Application Mode:** `production`
+   - **Application Root:** `/httpdocs` (or your target subfolder)
+   - **Application Startup File:** `dist/server.cjs`
+4. Under **Environment Variables**, add:
+   - `JWT_SECRET` = `your_secure_jwt_secret_here`
+   - `MYSQL_HOST` = `127.0.0.1` (or `localhost`)
+   - `MYSQL_PORT` = `3306`
+   - `MYSQL_USER` = `your_plesk_db_user`
+   - `MYSQL_PASSWORD` = `your_plesk_db_password`
+   - `MYSQL_DATABASE` = `ludo_league`
+
+### Step 3: Deploy & Build Code
+1. Upload the application source files via **Plesk File Manager**, Git integration, or FTP into your domain's `httpdocs` directory.
+2. In the Plesk **Node.js** control panel:
+   - Click the **NPM Install** button to install all dependencies.
+   - Click **Run Script** -> type `build` (or open **Plesk Terminal / SSH** and run `npm run build`). This compiles the React frontend bundle and packages `server.ts` into `dist/server.cjs`.
+
+### Step 4: Restart & Test Application
+1. Click **Restart App** in the Plesk Node.js panel.
+2. Open your website domain in a web browser.
+3. If this is the initial launch on a new database, the **First-Time Administrator Setup** prompt will appear automatically to let you register the primary admin account.
+

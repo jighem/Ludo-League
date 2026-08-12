@@ -367,7 +367,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req: Aut
     const existing = await query<any>('SELECT * FROM matches WHERE id = ? AND is_deleted = 0', [matchId]);
     if (existing.length === 0) return res.status(404).json({ error: 'Match not found' });
 
-    await execute(
+    await query(
       `UPDATE matches SET is_deleted = 1, deleted_by = ?, deleted_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [req.user?.id || null, matchId]
     );

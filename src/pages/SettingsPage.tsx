@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
 import { User } from '../types';
-import { Shield, Key, Database, RefreshCw, AlertCircle, CheckCircle, UserPlus, Trash2 } from 'lucide-react';
+import { Shield, Key, Database, RefreshCw, AlertCircle, CheckCircle, UserPlus, Sliders, Trophy } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -16,8 +16,14 @@ export const SettingsPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // League Settings
+  const [minMatchesQual, setMinMatchesQual] = useState<number>(8);
+  const [appName, setAppName] = useState<string>('Ludo League');
+  const [savingSettings, setSavingSettings] = useState(false);
+
   useEffect(() => {
     fetchUsers();
+    fetchLeagueSettings();
   }, []);
 
   const fetchUsers = async () => {
@@ -29,6 +35,40 @@ export const SettingsPage: React.FC = () => {
       setError(err.message || 'Failed to load system users.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLeagueSettings = async () => {
+    try {
+      const res = await apiRequest<{ settings: { minMatchesQualification: number; appName: string } }>('/settings');
+      if (res.settings) {
+        if (res.settings.minMatchesQualification) setMinMatchesQual(res.settings.minMatchesQualification);
+        if (res.settings.appName) setAppName(res.settings.appName);
+      }
+    } catch (err) {
+      console.error('Failed to load league settings:', err);
+    }
+  };
+
+  const handleSaveLeagueSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    try {
+      setSavingSettings(true);
+      await apiRequest('/settings/app', {
+        method: 'PUT',
+        body: JSON.stringify({
+          minMatchesQualification: Number(minMatchesQual),
+          appName: appName.trim()
+        })
+      });
+      setSuccessMsg('League settings updated successfully!');
+      fetchLeagueSettings();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update league settings.');
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -71,7 +111,7 @@ export const SettingsPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-zinc-100 tracking-tight">Admin & League Settings</h1>
-            <p className="text-xs text-zinc-400">Manage league operators, admin credentials, and database configuration</p>
+            <p className="text-xs text-zinc-400">Manage league rules, qualification thresholds, operators, and admin credentials</p>
           </div>
         </div>
       </div>
@@ -92,6 +132,58 @@ export const SettingsPage: React.FC = () => {
 
       {/* Bento Grid layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* League Rules & Qualification Threshold Card */}
+        <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl space-y-4">
+          <div className="flex items-center space-x-2 pb-3 border-b border-zinc-800/60">
+            <Sliders className="w-5 h-5 text-amber-500" />
+            <h3 className="text-base font-extrabold text-zinc-100">League & Qualification Rules</h3>
+          </div>
+
+          <form onSubmit={handleSaveLeagueSettings} className="space-y-4 text-xs">
+            <div>
+              <label className="block font-bold text-zinc-300 mb-1">
+                Minimum Matches for Qualification *
+              </label>
+              <input
+                id="input-min-matches-qual"
+                type="number"
+                min="1"
+                max="100"
+                value={minMatchesQual}
+                onChange={(e) => setMinMatchesQual(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 font-bold focus:ring-2 focus:ring-amber-500"
+                required
+              />
+              <p className="text-[11px] text-zinc-500 mt-1">
+                Players must play at least this many matches in a calendar month to be marked as <span className="text-emerald-400 font-bold">Qualified</span> on the Monthly Leaderboard.
+              </p>
+            </div>
+
+            <div>
+              <label className="block font-bold text-zinc-300 mb-1">
+                League Name *
+              </label>
+              <input
+                id="input-app-name"
+                type="text"
+                value={appName}
+                onChange={(e) => setAppName(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-100 font-bold focus:ring-2 focus:ring-amber-500"
+                required
+              />
+            </div>
+
+            <button
+              id="btn-save-league-settings"
+              type="submit"
+              disabled={savingSettings}
+              className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-extrabold rounded-xl shadow-lg shadow-amber-500/10 cursor-pointer disabled:opacity-50 transition-all"
+            >
+              {savingSettings ? 'Saving Changes...' : 'Save League Settings'}
+            </button>
+          </form>
+        </div>
+
         {/* Create Operator Form Card */}
         <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl space-y-4">
           <div className="flex items-center space-x-2 pb-3 border-b border-zinc-800/60">
@@ -164,7 +256,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Existing Authorized Accounts Card */}
-        <div className="lg:col-span-2 bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl space-y-4">
+        <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
             <div className="flex items-center space-x-2">
               <Key className="w-5 h-5 text-amber-500" />
@@ -189,7 +281,6 @@ export const SettingsPage: React.FC = () => {
                     <th className="py-2.5 px-3">Name</th>
                     <th className="py-2.5 px-3">Username</th>
                     <th className="py-2.5 px-3">Role</th>
-                    <th className="py-2.5 px-3">Created</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60 font-medium text-zinc-300">
@@ -208,7 +299,6 @@ export const SettingsPage: React.FC = () => {
                           {u.role}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-zinc-500">{u.created_at ? u.created_at.split('T')[0] : 'System'}</td>
                     </tr>
                   ))}
                 </tbody>

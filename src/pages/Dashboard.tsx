@@ -238,7 +238,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {leaderboard.length === 0 ? (
+          {leaderboard.length === 0 || !leaderboard.some((item) => item.total_matches > 0) ? (
             <div className="py-12 text-center text-zinc-500 space-y-2">
               <Trophy className="w-12 h-12 mx-auto text-zinc-400 dark:text-zinc-700" />
               <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No matches recorded for this month yet.</p>

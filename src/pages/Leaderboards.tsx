@@ -163,7 +163,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
             <div className="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Calculating official database rankings...</p>
           </div>
-        ) : leaderboard.length === 0 ? (
+        ) : leaderboard.length === 0 || !leaderboard.some((item) => item.total_matches > 0) ? (
           <div className="py-16 text-center text-zinc-500 dark:text-zinc-400 space-y-2">
             <Trophy className="w-12 h-12 mx-auto text-zinc-400 dark:text-zinc-700" />
             <p className="text-base font-bold text-zinc-800 dark:text-zinc-300">No standings available for this period.</p>

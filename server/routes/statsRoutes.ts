@@ -32,7 +32,7 @@ export async function calculateLeaderboard(options: {
     params.push(`${options.year}%`);
   }
 
-  // Query player performance from match results using LEFT JOIN so all active players are present
+  // Query player performance from match results using derived table so only non-deleted matches in date filter are aggregated
   const sql = `
     SELECT
       p.id as player_id,
@@ -40,19 +40,23 @@ export async function calculateLeaderboard(options: {
       p.nickname,
       p.profile_photo,
       p.is_active,
-      COUNT(m.id) as total_matches,
-      COALESCE(SUM(mr.points_awarded), 0) as total_points,
-      COALESCE(ROUND(AVG(mr.points_awarded), 2), 0) as average_score,
-      COALESCE(ROUND(AVG(mr.position), 2), 0) as average_position,
-      SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins_1st,
-      SUM(CASE WHEN mr.position = 2 THEN 1 ELSE 0 END) as pos_2nd,
-      SUM(CASE WHEN mr.position = 3 THEN 1 ELSE 0 END) as pos_3rd,
-      SUM(CASE WHEN mr.position = 4 THEN 1 ELSE 0 END) as pos_4th,
-      SUM(CASE WHEN mr.position = m.player_count THEN 1 ELSE 0 END) as last_place,
-      SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
+      COUNT(ar.match_id) as total_matches,
+      COALESCE(SUM(ar.points_awarded), 0) as total_points,
+      COALESCE(ROUND(AVG(ar.points_awarded), 2), 0) as average_score,
+      COALESCE(ROUND(AVG(ar.position), 2), 0) as average_position,
+      SUM(CASE WHEN ar.position = 1 THEN 1 ELSE 0 END) as wins_1st,
+      SUM(CASE WHEN ar.position = 2 THEN 1 ELSE 0 END) as pos_2nd,
+      SUM(CASE WHEN ar.position = 3 THEN 1 ELSE 0 END) as pos_3rd,
+      SUM(CASE WHEN ar.position = 4 THEN 1 ELSE 0 END) as pos_4th,
+      SUM(CASE WHEN ar.position = ar.player_count THEN 1 ELSE 0 END) as last_place,
+      SUM(CASE WHEN ar.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
     FROM players p
-    LEFT JOIN match_results mr ON p.id = mr.player_id
-    LEFT JOIN matches m ON mr.match_id = m.id AND m.is_deleted = 0 ${dateFilter}
+    LEFT JOIN (
+      SELECT mr.player_id, mr.points_awarded, mr.position, m.player_count, m.id as match_id
+      FROM match_results mr
+      JOIN matches m ON mr.match_id = m.id
+      WHERE m.is_deleted = 0 ${dateFilter}
+    ) ar ON p.id = ar.player_id
     WHERE p.is_active = 1
     GROUP BY p.id, p.full_name, p.nickname, p.profile_photo, p.is_active
   `;
@@ -202,11 +206,11 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
 
     // Most wins this month
     const sortedByWins = [...leaderboard].sort((a, b) => b.wins_1st - a.wins_1st);
-    const mostWinsPlayer = sortedByWins[0] ? `${sortedByWins[0].full_name} (${sortedByWins[0].wins_1st} wins)` : 'N/A';
+    const mostWinsPlayer = sortedByWins[0] && sortedByWins[0].wins_1st > 0 ? `${sortedByWins[0].full_name} (${sortedByWins[0].wins_1st} wins)` : 'N/A';
 
     // Most active player this month
     const sortedByMatches = [...leaderboard].sort((a, b) => b.total_matches - a.total_matches);
-    const mostActivePlayer = sortedByMatches[0] ? `${sortedByMatches[0].full_name} (${sortedByMatches[0].total_matches} games)` : 'N/A';
+    const mostActivePlayer = sortedByMatches[0] && sortedByMatches[0].total_matches > 0 ? `${sortedByMatches[0].full_name} (${sortedByMatches[0].total_matches} games)` : 'N/A';
 
     // Highest win rate
     const sortedByWinRate = [...leaderboard].filter((p) => p.total_matches >= 3).sort((a, b) => b.win_pct - a.win_pct);
@@ -606,7 +610,9 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
 
     const leaderboard = await calculateLeaderboard({ month: monthStr });
 
-    if (leaderboard.length === 0) {
+    const totalMatchesInMonth = leaderboard.reduce((acc, curr) => acc + curr.total_matches, 0);
+
+    if (totalMatchesInMonth === 0) {
       return res.json({ month: monthStr, awards: null, message: 'No matches recorded for this month.' });
     }
 

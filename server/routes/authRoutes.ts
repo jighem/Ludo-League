@@ -138,4 +138,55 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// List all system users (Admin required)
+router.get('/users', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin role required' });
+    }
+    const users = await query<any>(
+      'SELECT id, name, username, email, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
+    );
+    return res.json({ users });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Register new operator or admin user (Admin required)
+router.post('/register', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin role required' });
+    }
+    const { name, username, email, password, role } = req.body;
+    if (!name || !username || !password) {
+      return res.status(400).json({ error: 'Name, username, and password are required' });
+    }
+
+    const userRole = role && ['admin', 'operator', 'viewer'].includes(role) ? role : 'operator';
+
+    const existing = await query<any>('SELECT id FROM users WHERE username = ?', [username.trim()]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const result = await execute(
+      `INSERT INTO users (name, username, email, password_hash, role, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [name.trim(), username.trim(), email?.trim() || null, passwordHash, userRole]
+    );
+
+    await logAudit(req, 'CREATE_USER', 'users', result.insertId, { username: username.trim(), role: userRole });
+
+    return res.json({
+      message: 'User created successfully',
+      userId: result.insertId
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

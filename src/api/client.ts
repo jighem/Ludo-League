@@ -31,7 +31,19 @@ export async function apiRequest<T = any>(
     headers
   });
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  let data: any;
+
+  if (contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    const text = await response.text();
+    throw new Error(
+      response.ok
+        ? 'Received non-JSON response from server'
+        : `Server Error (${response.status}): ${text.substring(0, 100) || response.statusText}`
+    );
+  }
 
   if (!response.ok) {
     throw new Error(data.error || 'An unexpected error occurred');

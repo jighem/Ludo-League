@@ -21,18 +21,18 @@ export async function calculateLeaderboard(options: {
 }) {
   const minQualMatches = options.minMatches !== undefined ? options.minMatches : await getMinMatchesThreshold();
 
-  let whereClause = 'WHERE m.is_deleted = 0';
+  let dateFilter = '';
   const params: any[] = [];
 
   if (options.month) {
-    whereClause += ' AND m.match_date LIKE ?';
+    dateFilter = 'AND m.match_date LIKE ?';
     params.push(`${options.month}%`);
   } else if (options.year) {
-    whereClause += ' AND m.match_date LIKE ?';
+    dateFilter = 'AND m.match_date LIKE ?';
     params.push(`${options.year}%`);
   }
 
-  // Query raw player performance from match results
+  // Query player performance from match results using LEFT JOIN so all active players are present
   const sql = `
     SELECT
       p.id as player_id,
@@ -40,10 +40,10 @@ export async function calculateLeaderboard(options: {
       p.nickname,
       p.profile_photo,
       p.is_active,
-      COUNT(mr.id) as total_matches,
-      SUM(mr.points_awarded) as total_points,
-      ROUND(AVG(mr.points_awarded), 2) as average_score,
-      ROUND(AVG(mr.position), 2) as average_position,
+      COUNT(m.id) as total_matches,
+      COALESCE(SUM(mr.points_awarded), 0) as total_points,
+      COALESCE(ROUND(AVG(mr.points_awarded), 2), 0) as average_score,
+      COALESCE(ROUND(AVG(mr.position), 2), 0) as average_position,
       SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins_1st,
       SUM(CASE WHEN mr.position = 2 THEN 1 ELSE 0 END) as pos_2nd,
       SUM(CASE WHEN mr.position = 3 THEN 1 ELSE 0 END) as pos_3rd,
@@ -51,9 +51,9 @@ export async function calculateLeaderboard(options: {
       SUM(CASE WHEN mr.position = m.player_count THEN 1 ELSE 0 END) as last_place,
       SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
     FROM players p
-    JOIN match_results mr ON p.id = mr.player_id
-    JOIN matches m ON mr.match_id = m.id
-    ${whereClause}
+    LEFT JOIN match_results mr ON p.id = mr.player_id
+    LEFT JOIN matches m ON mr.match_id = m.id AND m.is_deleted = 0 ${dateFilter}
+    WHERE p.is_active = 1
     GROUP BY p.id, p.full_name, p.nickname, p.profile_photo, p.is_active
   `;
 

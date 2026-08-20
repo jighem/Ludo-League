@@ -834,16 +834,45 @@ router.get('/export', optionalAuthenticateToken, async (req, res) => {
     }
 
     if (type === 'matches') {
+      const { startDate, endDate, month, year, playerId, playerCount } = req.query;
+      let whereClause = 'WHERE m.is_deleted = 0';
+      const params: any[] = [];
+
+      if (startDate && typeof startDate === 'string') {
+        whereClause += ' AND m.match_date >= ?';
+        params.push(startDate);
+      }
+      if (endDate && typeof endDate === 'string') {
+        whereClause += ' AND m.match_date <= ?';
+        params.push(endDate);
+      }
+      if (month && typeof month === 'string') {
+        whereClause += ' AND m.match_date LIKE ?';
+        params.push(`${month}%`);
+      }
+      if (year && typeof year === 'string') {
+        whereClause += ' AND m.match_date LIKE ?';
+        params.push(`${year}%`);
+      }
+      if (playerCount && !isNaN(Number(playerCount))) {
+        whereClause += ' AND m.player_count = ?';
+        params.push(Number(playerCount));
+      }
+      if (playerId && !isNaN(Number(playerId))) {
+        whereClause += ' AND m.id IN (SELECT match_id FROM match_results WHERE player_id = ?)';
+        params.push(Number(playerId));
+      }
+
       const sql = `
         SELECT m.friendly_id, m.match_date, m.match_time, m.player_count, m.notes,
                p.full_name, mr.position, mr.points_awarded
         FROM matches m
         JOIN match_results mr ON m.id = mr.match_id
         JOIN players p ON mr.player_id = p.id
-        WHERE m.is_deleted = 0
+        ${whereClause}
         ORDER BY m.match_date DESC, m.match_time DESC, mr.position ASC
       `;
-      const rows = await query<any>(sql);
+      const rows = await query<any>(sql, params);
 
       let csv = 'Match ID,Date,Time,Player Count,Player Name,Rank,Points Awarded,Notes\n';
       rows.forEach((r) => {
@@ -852,7 +881,7 @@ router.get('/export', optionalAuthenticateToken, async (req, res) => {
       });
 
       res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=Ludo_Match_History.csv`);
+      res.setHeader('Content-Disposition', `attachment; filename=Ludo_Match_History_${month || year || 'All'}.csv`);
       return res.send(csv);
     }
 

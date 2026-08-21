@@ -741,20 +741,293 @@ router.get('/monthly-history', optionalAuthenticateToken, async (req, res) => {
 // Charts & Visualizations Data
 router.get('/charts', optionalAuthenticateToken, async (req, res) => {
   try {
-    const { playerId } = req.query;
+    const { playerId, month, year } = req.query;
 
-    // Match volume chart (last 12 months)
-    const volumeSql = `
-      SELECT SUBSTRING(match_date, 1, 7) as month, COUNT(*) as match_count
-      FROM matches
-      WHERE is_deleted = 0
-      GROUP BY SUBSTRING(match_date, 1, 7)
-      ORDER BY month ASC
-      LIMIT 12
-    `;
-    const matchVolume = await query<any>(volumeSql);
+    // 1. Fetch all active matches in chronological order
+    let matchFilterSql = 'WHERE m.is_deleted = 0';
+    const matchFilterParams: any[] = [];
+    if (month && typeof month === 'string') {
+      matchFilterSql += ' AND m.match_date LIKE ?';
+      matchFilterParams.push(`${month}%`);
+    } else if (year && typeof year === 'string') {
+      matchFilterSql += ' AND m.match_date LIKE ?';
+      matchFilterParams.push(`${year}%`);
+    }
 
-    // Overall or single player position distribution
+    const matchesList = await query<any>(`
+      SELECT m.id, m.friendly_id, m.match_date, m.match_time, m.player_count,
+             mr.player_id, p.full_name, p.nickname, mr.position, mr.points_awarded
+      FROM matches m
+      JOIN match_results mr ON m.id = mr.match_id
+      JOIN players p ON mr.player_id = p.id
+      ${matchFilterSql}
+      ORDER BY m.match_date ASC, m.match_time ASC, m.id ASC
+    `, matchFilterParams);
+
+    // 2. Fetch all players list
+    const playersList = await query<any>(`
+      SELECT id, full_name, nickname, is_active FROM players WHERE is_active = 1 ORDER BY full_name ASC
+    `);
+
+    // 3. Player Cumulative Points Average Evolution
+    // Build a match-by-match running tally per player
+    const playerRunningStats = new Map<number, { totalPts: number; matchesCount: number; name: string; nickname: string | null }>();
+    playersList.forEach((p) => {
+      playerRunningStats.set(p.id, { totalPts: 0, matchesCount: 0, name: p.full_name, nickname: p.nickname || null });
+    });
+
+    // Group rows by match
+    const matchesMap = new Map<number, { id: number; friendly_id: string; match_date: string; match_time: string; player_count: number; results: any[] }>();
+    matchesList.forEach((r) => {
+      if (!matchesMap.has(r.id)) {
+        matchesMap.set(r.id, {
+          id: r.id,
+          friendly_id: r.friendly_id,
+          match_date: r.match_date && String(r.match_date).includes('T') ? String(r.match_date).split('T')[0] : String(r.match_date || ''),
+          match_time: r.match_time,
+          player_count: r.player_count,
+          results: []
+        });
+      }
+      matchesMap.get(r.id)!.results.push(r);
+    });
+
+    const sortedMatches = Array.from(matchesMap.values());
+
+    // Compute progression timeline data
+    // When playerId is specified -> single player detailed points & average
+    // When no playerId -> multi-player running average points line chart
+    const playerCumulativeTrends: any[] = [];
+    const singlePlayerTrend: any[] = [];
+
+    let singlePlayerCumulativePts = 0;
+    let singlePlayerMatchCount = 0;
+    const targetPlayerId = playerId && !isNaN(Number(playerId)) ? Number(playerId) : null;
+
+    sortedMatches.forEach((m, idx) => {
+      const matchIndex = idx + 1;
+      const pointEntry: any = {
+        match_index: matchIndex,
+        match_date: m.match_date,
+        friendly_id: m.friendly_id,
+        label: `#${m.friendly_id.replace('MATCH-', '')}`
+      };
+
+      // Update running stats for all players who played in this match
+      m.results.forEach((r) => {
+        const pStat = playerRunningStats.get(r.player_id);
+        if (pStat) {
+          pStat.totalPts += Number(r.points_awarded);
+          pStat.matchesCount += 1;
+        }
+
+        // Single player tracking
+        if (targetPlayerId && r.player_id === targetPlayerId) {
+          singlePlayerCumulativePts += Number(r.points_awarded);
+          singlePlayerMatchCount += 1;
+          const cumAvg = singlePlayerCumulativePts / singlePlayerMatchCount;
+          singlePlayerTrend.push({
+            match_index: singlePlayerMatchCount,
+            global_match_index: matchIndex,
+            match_date: m.match_date,
+            friendly_id: m.friendly_id,
+            label: `#${m.friendly_id.replace('MATCH-', '')}`,
+            match_points: Number(r.points_awarded),
+            position: r.position,
+            cumulative_average: Number(cumAvg.toFixed(2)),
+            league_benchmark: 25.0
+          });
+        }
+      });
+
+      // Record snapshot of current cumulative average for each active player
+      playersList.forEach((p) => {
+        const pStat = playerRunningStats.get(p.id);
+        if (pStat && pStat.matchesCount > 0) {
+          const avg = pStat.totalPts / pStat.matchesCount;
+          pointEntry[p.full_name] = Number(avg.toFixed(2));
+          pointEntry[`p_${p.id}`] = Number(avg.toFixed(2));
+        }
+      });
+
+      playerCumulativeTrends.push(pointEntry);
+    });
+
+    // 4. Player Average Score & Finishing Positions Breakdown (Replaces meaningless pie chart)
+    const playerFinishes = new Map<number, {
+      player_id: number;
+      name: string;
+      nickname: string | null;
+      played: number;
+      pos1: number;
+      pos2: number;
+      pos3: number;
+      pos4: number;
+      totalPoints: number;
+      avgScore: number;
+      winPct: number;
+      podiumPct: number;
+    }>();
+
+    playersList.forEach((p) => {
+      playerFinishes.set(p.id, {
+        player_id: p.id,
+        name: p.full_name,
+        nickname: p.nickname || null,
+        played: 0,
+        pos1: 0,
+        pos2: 0,
+        pos3: 0,
+        pos4: 0,
+        totalPoints: 0,
+        avgScore: 0,
+        winPct: 0,
+        podiumPct: 0
+      });
+    });
+
+    matchesList.forEach((r) => {
+      let entry = playerFinishes.get(r.player_id);
+      if (!entry) {
+        entry = {
+          player_id: r.player_id,
+          name: r.full_name,
+          nickname: r.nickname || null,
+          played: 0,
+          pos1: 0,
+          pos2: 0,
+          pos3: 0,
+          pos4: 0,
+          totalPoints: 0,
+          avgScore: 0,
+          winPct: 0,
+          podiumPct: 0
+        };
+        playerFinishes.set(r.player_id, entry);
+      }
+      entry.played += 1;
+      if (r.position === 1) entry.pos1 += 1;
+      else if (r.position === 2) entry.pos2 += 1;
+      else if (r.position === 3) entry.pos3 += 1;
+      else if (r.position === 4) entry.pos4 += 1;
+      entry.totalPoints += Number(r.points_awarded) || 0;
+    });
+
+    const playerStatsSummary = Array.from(playerFinishes.values())
+      .filter((p) => p.played > 0)
+      .map((p) => {
+        const avg = p.played > 0 ? p.totalPoints / p.played : 0;
+        const winPct = p.played > 0 ? (p.pos1 / p.played) * 100 : 0;
+        const podiumPct = p.played > 0 ? ((p.pos1 + p.pos2 + p.pos3) / p.played) * 100 : 0;
+        return {
+          ...p,
+          avgScore: Number(avg.toFixed(2)),
+          winPct: Number(winPct.toFixed(1)),
+          podiumPct: Number(podiumPct.toFixed(1))
+        };
+      })
+      .sort((a, b) => b.avgScore - a.avgScore);
+
+    // 5. Match Volume: Monthly
+    const monthlyMap = new Map<string, number>();
+    sortedMatches.forEach((m) => {
+      const monthKey = m.match_date.substring(0, 7);
+      if (monthKey) {
+        monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + 1);
+      }
+    });
+
+    const matchVolumeMonthly = Array.from(monthlyMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([monthKey, count]) => {
+        let label = monthKey;
+        try {
+          const [yr, mo] = monthKey.split('-');
+          const dt = new Date(Number(yr), Number(mo) - 1, 1);
+          label = dt.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        } catch (e) {}
+        return {
+          month: monthKey,
+          label,
+          match_count: count
+        };
+      });
+
+    // 6. Match Volume: Weekly Activity
+    const weeklyMap = new Map<string, { weekKey: string; startDate: string; endDate: string; label: string; count: number }>();
+    sortedMatches.forEach((m) => {
+      try {
+        const dt = new Date(m.match_date);
+        if (!isNaN(dt.getTime())) {
+          // Get Monday of current week
+          const day = dt.getDay();
+          const diff = dt.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+          const monday = new Date(dt.setDate(diff));
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+
+          const monStr = monday.toISOString().split('T')[0];
+          const sunStr = sunday.toISOString().split('T')[0];
+          const weekKey = `${monStr}`;
+          
+          const label = `${monday.toLocaleString('en-US', { month: 'short', day: 'numeric' })} - ${sunday.toLocaleString('en-US', { month: 'short', day: 'numeric' })}`;
+
+          if (!weeklyMap.has(weekKey)) {
+            weeklyMap.set(weekKey, { weekKey, startDate: monStr, endDate: sunStr, label, count: 0 });
+          }
+          weeklyMap.get(weekKey)!.count += 1;
+        }
+      } catch (e) {}
+    });
+
+    const matchVolumeWeekly = Array.from(weeklyMap.values())
+      .sort((a, b) => a.weekKey.localeCompare(b.weekKey))
+      .map((w) => ({
+        week: w.weekKey,
+        label: w.label,
+        match_count: w.count
+      }));
+
+    // 7. Day of Week Activity
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+    sortedMatches.forEach((m) => {
+      try {
+        const dt = new Date(m.match_date);
+        if (!isNaN(dt.getTime())) {
+          dayCounts[dt.getDay()] += 1;
+        }
+      } catch (e) {}
+    });
+
+    // Order from Monday to Sunday
+    const dayOfWeekVolume = [
+      { day: 'Mon', fullDay: 'Monday', count: dayCounts[1] },
+      { day: 'Tue', fullDay: 'Tuesday', count: dayCounts[2] },
+      { day: 'Wed', fullDay: 'Wednesday', count: dayCounts[3] },
+      { day: 'Thu', fullDay: 'Thursday', count: dayCounts[4] },
+      { day: 'Fri', fullDay: 'Friday', count: dayCounts[5] },
+      { day: 'Sat', fullDay: 'Saturday', count: dayCounts[6] },
+      { day: 'Sun', fullDay: 'Sunday', count: dayCounts[0] }
+    ];
+
+    // 8. Match Format Breakdown (4-Player vs 3-Player vs 2-Player)
+    const formatCounts = { '4': 0, '3': 0, '2': 0 };
+    sortedMatches.forEach((m) => {
+      const c = String(m.player_count);
+      if (c === '4' || c === '3' || c === '2') {
+        formatCounts[c as '4' | '3' | '2'] += 1;
+      }
+    });
+
+    const totalMatchesCount = sortedMatches.length || 1;
+    const formatDistribution = [
+      { format: '4 Players', players: 4, count: formatCounts['4'], pct: Number(((formatCounts['4'] / totalMatchesCount) * 100).toFixed(1)), pointsRule: '50 / 30 / 20 / 0' },
+      { format: '3 Players', players: 3, count: formatCounts['3'], pct: Number(((formatCounts['3'] / totalMatchesCount) * 100).toFixed(1)), pointsRule: '62.5 / 37.5 / 0' },
+      { format: '2 Players', players: 2, count: formatCounts['2'], pct: Number(((formatCounts['2'] / totalMatchesCount) * 100).toFixed(1)), pointsRule: '100 / 0' }
+    ].filter((f) => f.count > 0);
+
+    // 9. Position distribution (if single player, returns their 1st, 2nd, 3rd, 4th; otherwise overall)
     let posDistSql = `
       SELECT position, COUNT(*) as count
       FROM match_results mr
@@ -762,49 +1035,29 @@ router.get('/charts', optionalAuthenticateToken, async (req, res) => {
       WHERE m.is_deleted = 0
     `;
     const posDistParams: any[] = [];
-
-    if (playerId && !isNaN(Number(playerId))) {
+    if (targetPlayerId) {
       posDistSql += ' AND mr.player_id = ?';
-      posDistParams.push(Number(playerId));
+      posDistParams.push(targetPlayerId);
     }
     posDistSql += ' GROUP BY position ORDER BY position ASC';
-
     const positionDistribution = await query<any>(posDistSql, posDistParams);
 
-    // Rolling average score trend (last 30 matches)
-    let trendSql = `
-      SELECT m.match_date, m.friendly_id, mr.points_awarded, mr.position
-      FROM match_results mr
-      JOIN matches m ON mr.match_id = m.id
-      WHERE m.is_deleted = 0
-    `;
-    const trendParams: any[] = [];
-    if (playerId && !isNaN(Number(playerId))) {
-      trendSql += ' AND mr.player_id = ?';
-      trendParams.push(Number(playerId));
-    }
-    trendSql += ' ORDER BY m.match_date ASC, m.match_time ASC, m.id ASC LIMIT 50';
-
-    const rawTrend = await query<any>(trendSql, trendParams);
-
-    // Calculate rolling 5-match average
-    const rollingTrend = rawTrend.map((row, idx) => {
-      const start = Math.max(0, idx - 4);
-      const slice = rawTrend.slice(start, idx + 1);
-      const avgPts = slice.reduce((acc, curr) => acc + Number(curr.points_awarded), 0) / slice.length;
-      return {
-        match_date: row.match_date && String(row.match_date).includes('T') ? String(row.match_date).split('T')[0] : String(row.match_date || ''),
-        friendly_id: row.friendly_id,
-        points: Number(row.points_awarded),
-        position: row.position,
-        rolling_avg: Number(avgPts.toFixed(2))
-      };
-    });
+    // Key Highlights & KPI Stats
+    const totalPointsAwarded = sortedMatches.length * 100;
+    const activePlayerNames = playersList.map((p) => p.full_name);
 
     return res.json({
-      matchVolume,
+      playerStatsSummary,
+      playerCumulativeTrends,
+      singlePlayerTrend,
+      matchVolumeMonthly,
+      matchVolumeWeekly,
+      dayOfWeekVolume,
+      formatDistribution,
       positionDistribution,
-      rollingTrend
+      totalMatches: sortedMatches.length,
+      totalPointsAwarded,
+      activePlayerNames
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

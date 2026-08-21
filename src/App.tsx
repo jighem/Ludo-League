@@ -92,7 +92,7 @@ function MainApp() {
       case 'head-to-head':
         return <HeadToHeadPage />;
       case 'analytics':
-        return <AnalyticsPage />;
+        return <AnalyticsPage onSelectPlayer={handleSelectPlayer} />;
       case 'awards':
         return <MonthlyAwardsPage onSelectPlayer={handleSelectPlayer} />;
       case 'settings':

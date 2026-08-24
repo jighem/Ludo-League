@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-zinc-900 dark:bg-zinc-950 p-1 border border-amber-500/40 flex items-center justify-center shadow-md shadow-amber-500/10">
               <svg className="w-full h-full" viewBox="0 0 64 64" fill="none">
                 <rect width="64" height="64" rx="14" fill="#09090B"/>
-                <rect x="2" y="2" width="60" height="60" rx="12" fill="#18181B" stroke="#27272A" stroke-width="2"/>
+                <rect x="2" y="2" width="60" height="60" rx="12" fill="#18181B" stroke="#27272A" strokeWidth="2"/>
                 <rect x="8" y="8" width="21" height="21" rx="5" fill="#EF4444"/>
                 <circle cx="18.5" cy="18.5" r="4" fill="#FEF2F2"/>
                 <rect x="35" y="8" width="21" height="21" rx="5" fill="#10B981"/>
@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <circle cx="18.5" cy="45.5" r="4" fill="#EFF6FF"/>
                 <rect x="35" y="35" width="21" height="21" rx="5" fill="#F59E0B"/>
                 <circle cx="45.5" cy="45.5" r="4" fill="#FFFBEB"/>
-                <polygon points="32,21 43,32 32,43 21,32" fill="#FBBF24" stroke="#F59E0B" stroke-width="1.5"/>
+                <polygon points="32,21 43,32 32,43 21,32" fill="#FBBF24" stroke="#F59E0B" strokeWidth="1.5"/>
                 <path d="M28 34.5 L36 34.5 L36 32.5 L34.5 33 L32 28.5 L29.5 33 L28 32.5 Z" fill="#78350F"/>
               </svg>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
+import { useLeague } from '../context/LeagueContext';
 import {
   ResponsiveContainer,
   LineChart,
@@ -25,7 +26,8 @@ import {
   CheckCircle2,
   PieChart as PieIcon,
   Layers,
-  Clock
+  Clock,
+  Crown
 } from 'lucide-react';
 
 const PLAYER_PALETTE = [
@@ -65,6 +67,7 @@ interface FormatDistribution {
 }
 
 export const AnalyticsPage: React.FC<{ onSelectPlayer?: (playerId: number) => void }> = ({ onSelectPlayer }) => {
+  const { activeLeague, activeLeagueId } = useLeague();
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
   const [filterMonth, setFilterMonth] = useState<string>('');
@@ -83,7 +86,7 @@ export const AnalyticsPage: React.FC<{ onSelectPlayer?: (playerId: number) => vo
 
   useEffect(() => {
     fetchChartsData();
-  }, [selectedPlayerId, filterMonth]);
+  }, [selectedPlayerId, filterMonth, activeLeagueId]);
 
   const fetchPlayers = async () => {
     try {
@@ -99,6 +102,7 @@ export const AnalyticsPage: React.FC<{ onSelectPlayer?: (playerId: number) => vo
       setLoading(true);
       let endpoint = '/stats/charts';
       const params: string[] = [];
+      if (activeLeagueId) params.push(`leagueId=${activeLeagueId}`);
       if (selectedPlayerId) params.push(`playerId=${selectedPlayerId}`);
       if (filterMonth) params.push(`month=${filterMonth}`);
       if (params.length > 0) endpoint += `?${params.join('&')}`;

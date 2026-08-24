@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
-import { Award, Trophy, Flame, TrendingUp, Target, Calendar, ChevronRight } from 'lucide-react';
+import { useLeague } from '../context/LeagueContext';
+import { Award, Trophy, Flame, TrendingUp, Target, Calendar, ChevronRight, Crown } from 'lucide-react';
 
-export const MonthlyAwardsPage: React.FC = () => {
+export const MonthlyAwardsPage: React.FC<{ onSelectPlayer?: (playerId: number) => void }> = ({ onSelectPlayer }) => {
+  const { activeLeague, activeLeagueId } = useLeague();
   const now = new Date();
   const currentMonthStr = now.toISOString().split('T')[0].substring(0, 7);
 
@@ -14,12 +16,12 @@ export const MonthlyAwardsPage: React.FC = () => {
   useEffect(() => {
     fetchAwards();
     fetchHistory();
-  }, [selectedMonth]);
+  }, [selectedMonth, activeLeagueId]);
 
   const fetchAwards = async () => {
     try {
       setLoading(true);
-      const res = await apiRequest(`/stats/monthly-awards?month=${selectedMonth}`);
+      const res = await apiRequest(`/stats/monthly-awards?month=${selectedMonth}&leagueId=${activeLeagueId || 1}`);
       setAwardsData(res.awards);
     } catch (err) {
       console.error('Failed to load awards:', err);
@@ -30,7 +32,7 @@ export const MonthlyAwardsPage: React.FC = () => {
 
   const fetchHistory = async () => {
     try {
-      const res = await apiRequest<{ history: any[] }>('/stats/monthly-history');
+      const res = await apiRequest<{ history: any[] }>(`/stats/monthly-history?leagueId=${activeLeagueId || 1}`);
       setHistoryData(res.history);
     } catch (err) {
       console.error('Failed to load history:', err);

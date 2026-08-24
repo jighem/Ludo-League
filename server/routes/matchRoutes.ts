@@ -81,7 +81,7 @@ router.post('/check-duplicate', authenticateToken, async (req, res) => {
 // Create new match (Transactional)
 router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (req: AuthenticatedRequest, res) => {
   try {
-    const { match_date, match_time, player_count, notes, results } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id } = req.body;
 
     // Validations
     if (!match_date || !match_time) {
@@ -96,6 +96,8 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
     if (!results || !Array.isArray(results) || results.length !== pCount) {
       return res.status(400).json({ error: `Exactly ${pCount} player results must be provided` });
     }
+
+    const targetLeagueId = Number(league_id) || 1;
 
     // Check unique players and unique ranks
     const playerIds = new Set<number>();
@@ -141,9 +143,9 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
     // Transaction execution
     const newMatchId = await transaction(async (tx) => {
       const mRes = await tx.execute(
-        `INSERT INTO matches (friendly_id, match_date, match_time, player_count, notes, created_by, is_deleted, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [friendlyId, match_date, match_time, pCount, notes?.trim() || null, createdBy]
+        `INSERT INTO matches (league_id, friendly_id, match_date, match_time, player_count, notes, created_by, is_deleted, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [targetLeagueId, friendlyId, match_date, match_time, pCount, notes?.trim() || null, createdBy]
       );
 
       const matchId = mRes.insertId;
@@ -163,12 +165,13 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
       return matchId;
     });
 
-    await logAudit(req, 'CREATE_MATCH', 'matches', newMatchId, { friendlyId, match_date, player_count: pCount });
+    await logAudit(req, 'CREATE_MATCH', 'matches', newMatchId, { friendlyId, match_date, player_count: pCount, league_id: targetLeagueId });
 
     return res.json({
       message: 'Match saved successfully',
       matchId: newMatchId,
-      friendlyId
+      friendlyId,
+      leagueId: targetLeagueId
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -182,11 +185,15 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const offset = (page - 1) * limit;
 
-    const { startDate, endDate, month, year, playerId, playerCount } = req.query;
+    const { startDate, endDate, month, year, playerId, playerCount, leagueId } = req.query;
 
     let whereClause = 'WHERE m.is_deleted = 0';
     const params: any[] = [];
 
+    if (leagueId && !isNaN(Number(leagueId))) {
+      whereClause += ' AND m.league_id = ?';
+      params.push(Number(leagueId));
+    }
     if (startDate && typeof startDate === 'string') {
       whereClause += ' AND m.match_date >= ?';
       params.push(startDate);
@@ -216,9 +223,10 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
     const total = countRes[0]?.total || 0;
 
     const sql = `
-      SELECT m.*, u.name as created_by_name
+      SELECT m.*, u.name as created_by_name, l.name as league_name, l.code as league_code
       FROM matches m
       LEFT JOIN users u ON m.created_by = u.id
+      LEFT JOIN leagues l ON m.league_id = l.id
       ${whereClause}
       ORDER BY m.match_date DESC, m.match_time DESC, m.id DESC
       LIMIT ${limit} OFFSET ${offset}

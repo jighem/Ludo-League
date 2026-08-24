@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { LeaderboardItem } from '../types';
 import { apiRequest } from '../api/client';
-import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck } from 'lucide-react';
+import { useLeague } from '../context/LeagueContext';
+import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown } from 'lucide-react';
 
 interface LeaderboardsProps {
   onSelectPlayer: (playerId: number) => void;
+  onOpenNewMatch?: () => void;
 }
 
 export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) => {
+  const { activeLeague, activeLeagueId } = useLeague();
   const [tab, setTab] = useState<'monthly' | 'yearly' | 'alltime'>('monthly');
 
   const now = new Date();
@@ -24,13 +27,13 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [tab, selectedMonth, selectedYear]);
+  }, [tab, selectedMonth, selectedYear, activeLeagueId]);
 
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
       setError('');
-      let endpoint = '/stats/leaderboard?';
+      let endpoint = `/stats/leaderboard?leagueId=${activeLeagueId || 1}&`;
       if (tab === 'monthly') {
         endpoint += `month=${selectedMonth}`;
       } else if (tab === 'yearly') {
@@ -48,7 +51,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
   };
 
   const handleExportCSV = () => {
-    let url = '/api/stats/export?type=leaderboard';
+    let url = `/api/stats/export?type=leaderboard&leagueId=${activeLeagueId || 1}`;
     if (tab === 'monthly') url += `&month=${selectedMonth}`;
     if (tab === 'yearly') url += `&year=${selectedYear}`;
     window.open(url, '_blank');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { LeagueProvider } from './context/LeagueContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
@@ -191,9 +192,11 @@ function MainApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <SettingsProvider>
-        <MainApp />
-      </SettingsProvider>
+      <LeagueProvider>
+        <SettingsProvider>
+          <MainApp />
+        </SettingsProvider>
+      </LeagueProvider>
     </AuthProvider>
   );
 }

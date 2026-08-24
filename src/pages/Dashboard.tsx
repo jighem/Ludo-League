@@ -4,6 +4,7 @@ import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
+import { useLeague } from '../context/LeagueContext';
 import {
   Trophy,
   Flame,
@@ -16,7 +17,8 @@ import {
   Sparkles,
   ChevronRight,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Crown
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -32,6 +34,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const { user } = useAuth();
   const { appName } = useSettings();
+  const { activeLeague, activeLeagueId } = useLeague();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<{
@@ -52,13 +55,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeLeagueId]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await apiRequest('/stats/dashboard');
+      const endpoint = activeLeagueId ? `/stats/dashboard?leagueId=${activeLeagueId}` : '/stats/dashboard';
+      const res = await apiRequest(endpoint);
       setData(res);
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data.');

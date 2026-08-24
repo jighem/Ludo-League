@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Rounded Base Canvas with slight shadow effect -->
+  <rect width="64" height="64" rx="14" fill="#09090B"/>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#18181B" stroke="#27272A" stroke-width="2"/>
+  
+  <!-- 4 Ludo Quadrants -->
+  <!-- Top Left: Red -->
+  <rect x="8" y="8" width="21" height="21" rx="6" fill="#EF4444"/>
+  <circle cx="18.5" cy="18.5" r="4.5" fill="#FEF2F2"/>
+  <circle cx="18.5" cy="18.5" r="2.5" fill="#EF4444"/>
+
+  <!-- Top Right: Green -->
+  <rect x="35" y="8" width="21" height="21" rx="6" fill="#10B981"/>
+  <circle cx="45.5" cy="18.5" r="4.5" fill="#ECFDF5"/>
+  <circle cx="45.5" cy="18.5" r="2.5" fill="#10B981"/>
+
+  <!-- Bottom Left: Blue -->
+  <rect x="8" y="35" width="21" height="21" rx="6" fill="#3B82F6"/>
+  <circle cx="18.5" cy="45.5" r="4.5" fill="#EFF6FF"/>
+  <circle cx="18.5" cy="45.5" r="2.5" fill="#3B82F6"/>
+
+  <!-- Bottom Right: Yellow / Amber -->
+  <rect x="35" y="35" width="21" height="21" rx="6" fill="#F59E0B"/>
+  <circle cx="45.5" cy="45.5" r="4.5" fill="#FFFBEB"/>
+  <circle cx="45.5" cy="45.5" r="2.5" fill="#F59E0B"/>
+
+  <!-- Center Golden Crown / Dice Diamond -->
+  <polygon points="32,21 43,32 32,43 21,32" fill="#FBBF24" stroke="#F59E0B" stroke-width="1.5"/>
+  <!-- Crown inside center -->
+  <path d="M28 34.5 L36 34.5 L36 32.5 L34.5 33 L32 28.5 L29.5 33 L28 32.5 Z" fill="#78350F"/>
+</svg>

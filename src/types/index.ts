@@ -8,6 +8,19 @@ export interface User {
   created_at?: string;
 }
 
+export interface League {
+  id: number;
+  name: string;
+  code: string;
+  description: string | null;
+  is_active: number;
+  is_default: number;
+  total_matches?: number;
+  active_players_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Player {
   id: number;
   full_name: string;
@@ -39,6 +52,9 @@ export interface MatchResult {
 
 export interface Match {
   id: number;
+  league_id: number;
+  league_name?: string;
+  league_code?: string;
   friendly_id: string;
   match_date: string;
   match_time: string;

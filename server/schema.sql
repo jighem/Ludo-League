@@ -1,4 +1,4 @@
--- Ludo League Database Schema for MySQL 8+
+-- Ludo League Master Database Schema for MySQL 8+
 
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -10,6 +10,18 @@ CREATE TABLE IF NOT EXISTS users (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS leagues (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  description TEXT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  is_default TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_league_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS players (
@@ -27,6 +39,7 @@ CREATE TABLE IF NOT EXISTS players (
 
 CREATE TABLE IF NOT EXISTS matches (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  league_id INT NOT NULL DEFAULT 1,
   friendly_id VARCHAR(30) NOT NULL UNIQUE,
   match_date DATE NOT NULL,
   match_time TIME NOT NULL,
@@ -38,6 +51,7 @@ CREATE TABLE IF NOT EXISTS matches (
   deleted_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_league_id (league_id),
   INDEX idx_match_date (match_date),
   INDEX idx_is_deleted (is_deleted),
   INDEX idx_player_count (player_count)
@@ -88,11 +102,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE TABLE IF NOT EXISTS championship_snapshots (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  month VARCHAR(7) NOT NULL UNIQUE,
+  league_id INT NOT NULL DEFAULT 1,
+  month VARCHAR(7) NOT NULL,
   winner_player_ids TEXT NOT NULL,
   winning_average DECIMAL(8,2) NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY idx_league_month (league_id, month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Initial default AC Ludo League 1
+INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default) VALUES
+(1, 'AC Ludo League 1', 'AC-LUDO-1', 'The primary competitive Ludo championship league.', 1, 1);
 
 -- Initial default scoring rules
 INSERT IGNORE INTO scoring_rules (player_count, pos1_points, pos2_points, pos3_points, pos4_points) VALUES
@@ -103,6 +123,6 @@ INSERT IGNORE INTO scoring_rules (player_count, pos1_points, pos2_points, pos3_p
 -- Initial default settings
 INSERT IGNORE INTO application_settings (setting_key, setting_value) VALUES
 ('min_matches_qualification', '8'),
-('app_name', 'Ludo League'),
+('app_name', 'Ludo League Master'),
 ('timezone', 'Asia/Kolkata'),
 ('closed_months', '[]');

@@ -1,6 +1,6 @@
 {
-  "name": "Ludo League",
-  "description": "Production-ready Ludo league management, player rankings, scoring rules, monthly champions, and statistics system.",
+  "name": "Ludo League Master",
+  "description": "Production-ready Multi-League Ludo management, player rankings, scoring rules, monthly champions, and statistics system.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

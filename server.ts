@@ -12,6 +12,7 @@ import matchRoutes from './server/routes/matchRoutes';
 import statsRoutes from './server/routes/statsRoutes';
 import settingsRoutes from './server/routes/settingsRoutes';
 import auditRoutes from './server/routes/auditRoutes';
+import leagueRoutes from './server/routes/leagueRoutes';
 
 async function startServer() {
   const app = express();
@@ -32,6 +33,7 @@ async function startServer() {
   // API Routes
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/leagues', leagueRoutes);
   app.use('/api/players', playerRoutes);
   app.use('/api/matches', matchRoutes);
   app.use('/api/stats', statsRoutes);

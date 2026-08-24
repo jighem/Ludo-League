@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update Application Settings (Admin only)
-router.put('/app', authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+const handleUpdateSettings = async (req: AuthenticatedRequest, res: any) => {
   try {
     const { minMatchesQualification, appName, timezone, closedMonths } = req.body;
 
@@ -73,7 +73,12 @@ router.put('/app', authenticateToken, requireRole(['admin']), async (req: Authen
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
-});
+};
+
+router.post('/', authenticateToken, requireRole(['admin']), handleUpdateSettings);
+router.put('/', authenticateToken, requireRole(['admin']), handleUpdateSettings);
+router.post('/app', authenticateToken, requireRole(['admin']), handleUpdateSettings);
+router.put('/app', authenticateToken, requireRole(['admin']), handleUpdateSettings);
 
 // Update Scoring Rules (Admin only)
 router.put('/scoring-rules', authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {

@@ -3,6 +3,7 @@ import { Match, Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
+import { useLeague } from '../context/LeagueContext';
 import {
   History,
   Search,
@@ -20,7 +21,8 @@ import {
   Calculator,
   ChevronDown,
   ChevronUp,
-  RotateCcw
+  RotateCcw,
+  Crown
 } from 'lucide-react';
 
 interface MatchHistoryProps {
@@ -30,6 +32,7 @@ interface MatchHistoryProps {
 
 export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOpenNewMatch }) => {
   const { user } = useAuth();
+  const { activeLeague, activeLeagueId } = useLeague();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +64,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
 
   useEffect(() => {
     fetchMatches();
-  }, [page, limit, filterMonth, selectedPlayerId, selectedPlayerCount, startDate, endDate]);
+  }, [page, limit, filterMonth, selectedPlayerId, selectedPlayerCount, startDate, endDate, activeLeagueId]);
 
   const fetchPlayers = async () => {
     try {
@@ -76,6 +79,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
     try {
       setLoading(true);
       let endpoint = `/matches?page=${page}&limit=${limit}`;
+      if (activeLeagueId) endpoint += `&leagueId=${activeLeagueId}`;
       if (filterMonth) endpoint += `&month=${filterMonth}`;
       if (selectedPlayerId) endpoint += `&playerId=${selectedPlayerId}`;
       if (selectedPlayerCount) endpoint += `&playerCount=${selectedPlayerCount}`;
@@ -122,7 +126,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
   };
 
   const handleExportCSV = () => {
-    let url = '/api/stats/export?type=matches';
+    let url = `/api/stats/export?type=matches&leagueId=${activeLeagueId || 1}`;
     if (filterMonth) url += `&month=${filterMonth}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;

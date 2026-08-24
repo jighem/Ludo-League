@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, ScoringRule } from '../types';
 import { apiRequest } from '../api/client';
+import { useLeague } from '../context/LeagueContext';
 import { AddPlayerModal } from './AddPlayerModal';
 import {
   X,
@@ -10,8 +11,8 @@ import {
   CheckCircle2,
   Calendar,
   Clock,
-  Sparkles,
-  RotateCcw
+  RotateCcw,
+  Crown
 } from 'lucide-react';
 
 interface NewMatchModalProps {
@@ -21,6 +22,8 @@ interface NewMatchModalProps {
 }
 
 export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, onMatchSaved }) => {
+  const { leagues, activeLeagueId } = useLeague();
+  const [selectedLeagueId, setSelectedLeagueId] = useState<number>(activeLeagueId || 1);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scoringRules, setScoringRules] = useState<Record<number, Record<number, number>>>({
     4: { 1: 50, 2: 30, 3: 20, 4: 0 },
@@ -48,16 +51,17 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
   const [error, setError] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState<{ friendlyId: string } | null>(null);
+  const [savedSuccess, setSavedSuccess] = useState<{ friendlyId: string; leagueName: string } | null>(null);
 
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setSelectedLeagueId(activeLeagueId || 1);
       fetchInitialData();
       resetForm();
     }
-  }, [isOpen]);
+  }, [isOpen, activeLeagueId]);
 
   const fetchInitialData = async () => {
     try {
@@ -114,6 +118,11 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
 
   const validateForm = (): boolean => {
     setError('');
+    if (!selectedLeagueId) {
+      setError('Please select a League for this match');
+      return false;
+    }
+
     for (let pos = 1; pos <= playerCount; pos++) {
       if (!selectedPlayers[pos]) {
         setError(`Please select a player for Position ${pos}`);
@@ -154,7 +163,8 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
           body: JSON.stringify({
             match_date: matchDate,
             player_count: playerCount,
-            results
+            results,
+            league_id: selectedLeagueId
           })
         });
 
@@ -179,12 +189,17 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
           match_date: matchDate,
           match_time: matchTime,
           player_count: playerCount,
+          league_id: selectedLeagueId,
           notes,
           results
         })
       });
 
-      setSavedSuccess({ friendlyId: res.friendlyId });
+      const currentLg = leagues.find((l) => l.id === selectedLeagueId);
+      setSavedSuccess({
+        friendlyId: res.friendlyId,
+        leagueName: currentLg?.name || 'League'
+      });
       onMatchSaved();
     } catch (err: any) {
       setError(err.message || 'Failed to save match.');
@@ -225,7 +240,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
               </div>
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Record Match</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Enter players & finishing ranks</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Enter league, players & finishing ranks</p>
               </div>
             </div>
 
@@ -247,10 +262,10 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
               <div>
                 <h4 className="text-2xl font-black text-slate-900 dark:text-white">Match Recorded!</h4>
                 <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
-                  Match Reference: <span className="underline">{savedSuccess.friendlyId}</span>
+                  Reference: <span className="underline">{savedSuccess.friendlyId}</span> in <span className="font-extrabold">{savedSuccess.leagueName}</span>
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
-                  Points have been updated dynamically across all leaderboards and player statistics.
+                  Points have been dynamically updated in the leaderboard and analytics for this league.
                 </p>
               </div>
 
@@ -304,6 +319,25 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                   </div>
                 </div>
               )}
+
+              {/* League Selector in Match Modal */}
+              <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20">
+                <label className="block text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5" /> Target Ludo League
+                </label>
+                <select
+                  id="select-match-league"
+                  value={selectedLeagueId}
+                  onChange={(e) => setSelectedLeagueId(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-500/30 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                >
+                  {leagues.map((lg) => (
+                    <option key={lg.id} value={lg.id}>
+                      {lg.name} ({lg.code}) {lg.is_default === 1 ? '— Default League' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {/* Match Controls Row */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -376,7 +410,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                   <button
                     id="btn-quick-add-player"
                     onClick={() => setAddPlayerModalOpen(true)}
-                    className="inline-flex items-center space-x-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                    className="inline-flex items-center space-x-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add New Player</span>
@@ -453,7 +487,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                    className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
                   >
                     Cancel
                   </button>

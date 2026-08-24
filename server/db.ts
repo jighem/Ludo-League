@@ -68,6 +68,51 @@ export async function initDatabase() {
           console.warn('Notice during schema initialization on MySQL:', (schemaErr as Error).message);
         }
       }
+
+      // Ensure backward-compatible league_id columns and default league in MySQL
+      try {
+        await mysqlPool.query(`
+          CREATE TABLE IF NOT EXISTS leagues (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            code VARCHAR(50) NOT NULL UNIQUE,
+            description TEXT NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            is_default TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_league_active (is_active)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        // Check if league_id column exists on matches table
+        const [matchCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'matches' AND COLUMN_NAME = 'league_id';
+        `);
+        if (matchCols.length === 0) {
+          await mysqlPool.query(`ALTER TABLE matches ADD COLUMN league_id INT NOT NULL DEFAULT 1 AFTER id;`);
+          await mysqlPool.query(`ALTER TABLE matches ADD INDEX idx_league_id (league_id);`);
+        }
+
+        // Check if league_id column exists on championship_snapshots
+        const [snapCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'championship_snapshots' AND COLUMN_NAME = 'league_id';
+        `);
+        if (snapCols.length === 0) {
+          await mysqlPool.query(`ALTER TABLE championship_snapshots ADD COLUMN league_id INT NOT NULL DEFAULT 1 AFTER id;`);
+        }
+
+        // Ensure default AC Ludo League 1 exists
+        await mysqlPool.query(`
+          INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
+          VALUES (1, 'AC Ludo League 1', 'AC-LUDO-1', 'The primary competitive Ludo championship league.', 1, 1);
+        `);
+      } catch (migErr) {
+        console.warn('Notice during multi-league migration check on MySQL:', (migErr as Error).message);
+      }
+
       return;
     } catch (err) {
       console.warn('Could not connect to configured MySQL host, falling back to embedded SQL engine:', (err as Error).message);
@@ -125,8 +170,20 @@ function initEmbeddedSchema() {
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS leagues (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      description TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS matches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      league_id INTEGER NOT NULL DEFAULT 1,
       friendly_id TEXT NOT NULL UNIQUE,
       match_date DATE NOT NULL,
       match_time TIME NOT NULL,
@@ -181,11 +238,16 @@ function initEmbeddedSchema() {
 
     CREATE TABLE IF NOT EXISTS championship_snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month TEXT NOT NULL UNIQUE,
+      league_id INTEGER NOT NULL DEFAULT 1,
+      month TEXT NOT NULL,
       winner_player_ids TEXT NOT NULL,
       winning_average DECIMAL(8,2) NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (league_id, month)
     );
+
+    INSERT OR IGNORE INTO leagues (id, name, code, description, is_active, is_default) VALUES
+    (1, 'AC Ludo League 1', 'AC-LUDO-1', 'The primary competitive Ludo championship league.', 1, 1);
 
     INSERT OR IGNORE INTO scoring_rules (player_count, pos1_points, pos2_points, pos3_points, pos4_points) VALUES
     (4, 50.00, 30.00, 20.00, 0.00),
@@ -194,10 +256,42 @@ function initEmbeddedSchema() {
 
     INSERT OR IGNORE INTO application_settings (setting_key, setting_value) VALUES
     ('min_matches_qualification', '8'),
-    ('app_name', 'Ludo League'),
+    ('app_name', 'Ludo League Master'),
     ('timezone', 'Asia/Kolkata'),
     ('closed_months', '[]');
   `);
+
+  // Safe migration for existing SQLite files
+  try {
+    const tableInfo = sqlJsDb.exec("PRAGMA table_info('matches');");
+    const cols = tableInfo[0]?.values?.map((v: any) => v[1]) || [];
+    if (!cols.includes('league_id')) {
+      sqlJsDb.exec('ALTER TABLE matches ADD COLUMN league_id INTEGER NOT NULL DEFAULT 1;');
+    }
+  } catch (err) {
+    // Already exists or fresh db
+  }
+
+  try {
+    const tableInfoSnap = sqlJsDb.exec("PRAGMA table_info('championship_snapshots');");
+    const colsSnap = tableInfoSnap[0]?.values?.map((v: any) => v[1]) || [];
+    if (!colsSnap.includes('league_id')) {
+      sqlJsDb.exec('ALTER TABLE championship_snapshots ADD COLUMN league_id INTEGER NOT NULL DEFAULT 1;');
+    }
+  } catch (err) {
+    // Already exists or fresh db
+  }
+
+  // Update legacy app name to Ludo League Master
+  try {
+    sqlJsDb.exec(`
+      UPDATE application_settings 
+      SET setting_value = 'Ludo League Master' 
+      WHERE setting_key = 'app_name' AND (setting_value = 'AC Local Ludo League' OR setting_value = 'Ludo League' OR setting_value = '');
+    `);
+  } catch (err) {
+    // ignore
+  }
 }
 
 /**

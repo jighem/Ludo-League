@@ -18,17 +18,23 @@ export async function calculateLeaderboard(options: {
   month?: string; // YYYY-MM
   year?: string;  // YYYY
   minMatches?: number;
+  leagueId?: number;
 }) {
   const minQualMatches = options.minMatches !== undefined ? options.minMatches : await getMinMatchesThreshold();
 
   let dateFilter = '';
   const params: any[] = [];
 
+  if (options.leagueId && !isNaN(Number(options.leagueId))) {
+    dateFilter += ' AND m.league_id = ?';
+    params.push(Number(options.leagueId));
+  }
+
   if (options.month) {
-    dateFilter = 'AND m.match_date LIKE ?';
+    dateFilter += ' AND m.match_date LIKE ?';
     params.push(`${options.month}%`);
   } else if (options.year) {
-    dateFilter = 'AND m.match_date LIKE ?';
+    dateFilter += ' AND m.match_date LIKE ?';
     params.push(`${options.year}%`);
   }
 
@@ -156,25 +162,52 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
     const currentMonthStr = todayStr.substring(0, 7);
+    const leagueId = req.query.leagueId ? Number(req.query.leagueId) : undefined;
+
+    let leagueFilter = '';
+    const leagueParams: any[] = [];
+    if (leagueId && !isNaN(leagueId)) {
+      leagueFilter = ' AND m.league_id = ?';
+      leagueParams.push(leagueId);
+    }
 
     // Today matches count
     const todayRes = await query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM matches WHERE match_date = ? AND is_deleted = 0',
-      [todayStr]
+      `SELECT COUNT(*) as count FROM matches m WHERE m.match_date = ? AND m.is_deleted = 0${leagueFilter}`,
+      [todayStr, ...leagueParams]
     );
 
     // Month matches count
     const monthRes = await query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM matches WHERE match_date LIKE ? AND is_deleted = 0',
-      [`${currentMonthStr}%`]
+      `SELECT COUNT(*) as count FROM matches m WHERE m.match_date LIKE ? AND m.is_deleted = 0${leagueFilter}`,
+      [`${currentMonthStr}%`, ...leagueParams]
     );
 
-    // Active players count
-    const activePlayersRes = await query<{ count: number }>('SELECT COUNT(*) as count FROM players WHERE is_active = 1');
+    // Active players count (who have played in this league or overall active)
+    let activePlayersCount = 0;
+    if (leagueId) {
+      const activeInLeagueRes = await query<{ count: number }>(
+        `SELECT COUNT(DISTINCT mr.player_id) as count
+         FROM match_results mr
+         JOIN matches m ON mr.match_id = m.id
+         WHERE m.league_id = ? AND m.is_deleted = 0`,
+        [leagueId]
+      );
+      activePlayersCount = activeInLeagueRes[0]?.count || 0;
+    } else {
+      const activePlayersRes = await query<{ count: number }>('SELECT COUNT(*) as count FROM players WHERE is_active = 1');
+      activePlayersCount = activePlayersRes[0]?.count || 0;
+    }
 
     // Latest match
     const latestMatchRes = await query<any>(
-      `SELECT m.*, u.name as created_by_name FROM matches m LEFT JOIN users u ON m.created_by = u.id WHERE m.is_deleted = 0 ORDER BY m.match_date DESC, m.match_time DESC, m.id DESC LIMIT 1`
+      `SELECT m.*, u.name as created_by_name, l.name as league_name, l.code as league_code
+       FROM matches m
+       LEFT JOIN users u ON m.created_by = u.id
+       LEFT JOIN leagues l ON m.league_id = l.id
+       WHERE m.is_deleted = 0${leagueFilter}
+       ORDER BY m.match_date DESC, m.match_time DESC, m.id DESC LIMIT 1`,
+      leagueParams
     );
 
     let latestMatch = null;
@@ -191,8 +224,8 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
       );
     }
 
-    // Leaderboard for current month
-    const leaderboard = await calculateLeaderboard({ month: currentMonthStr });
+    // Leaderboard for current month in this league
+    const leaderboard = await calculateLeaderboard({ month: currentMonthStr, leagueId });
 
     // Current leader
     const champions = leaderboard.filter((p) => p.is_champion);
@@ -220,7 +253,7 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
       summary: {
         matchesToday: todayRes[0]?.count || 0,
         matchesThisMonth: monthRes[0]?.count || 0,
-        activePlayers: activePlayersRes[0]?.count || 0,
+        activePlayers: activePlayersCount,
         currentLeader: leaderName,
         currentLeaderAverage: leaderAvg,
         mostWinsThisMonth: mostWinsPlayer,
@@ -239,13 +272,15 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
 // Leaderboard API (Monthly, Yearly, All-Time)
 router.get('/leaderboard', optionalAuthenticateToken, async (req, res) => {
   try {
-    const { month, year, minMatches } = req.query;
+    const { month, year, minMatches, leagueId } = req.query;
     const minM = minMatches !== undefined ? Number(minMatches) : undefined;
+    const lId = leagueId !== undefined && !isNaN(Number(leagueId)) ? Number(leagueId) : undefined;
 
     const leaderboard = await calculateLeaderboard({
       month: month && typeof month === 'string' ? month : undefined,
       year: year && typeof year === 'string' ? year : undefined,
-      minMatches: minM
+      minMatches: minM,
+      leagueId: lId
     });
 
     const minQualification = await getMinMatchesThreshold();
@@ -606,9 +641,10 @@ router.get('/multi-player', optionalAuthenticateToken, async (req, res) => {
 router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
   try {
     const monthStr = (req.query.month as string) || new Date().toISOString().split('T')[0].substring(0, 7);
+    const leagueId = req.query.leagueId ? Number(req.query.leagueId) : undefined;
     const minM = await getMinMatchesThreshold();
 
-    const leaderboard = await calculateLeaderboard({ month: monthStr });
+    const leaderboard = await calculateLeaderboard({ month: monthStr, leagueId });
 
     const totalMatchesInMonth = leaderboard.reduce((acc, curr) => acc + curr.total_matches, 0);
 
@@ -636,7 +672,7 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
     prevDate.setMonth(prevDate.getMonth() - 1);
     const prevMonthStr = prevDate.toISOString().split('T')[0].substring(0, 7);
 
-    const prevLeaderboard = await calculateLeaderboard({ month: prevMonthStr });
+    const prevLeaderboard = await calculateLeaderboard({ month: prevMonthStr, leagueId });
 
     let mostImprovedWinner = null;
     let maxImprovement = -999;
@@ -663,13 +699,19 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
     let minStdDev = 999999;
 
     for (const p of qualifiedPlayers) {
-      const matchPtsSql = `
+      let matchPtsSql = `
         SELECT mr.points_awarded
         FROM match_results mr
         JOIN matches m ON mr.match_id = m.id
         WHERE mr.player_id = ? AND m.match_date LIKE ? AND m.is_deleted = 0
       `;
-      const ptsRows = await query<{ points_awarded: number }>(matchPtsSql, [p.player_id, `${monthStr}%`]);
+      const ptsParams: any[] = [p.player_id, `${monthStr}%`];
+      if (leagueId && !isNaN(leagueId)) {
+        matchPtsSql += ' AND m.league_id = ?';
+        ptsParams.push(leagueId);
+      }
+
+      const ptsRows = await query<{ points_awarded: number }>(matchPtsSql, ptsParams);
       if (ptsRows.length >= minM) {
         const pts = ptsRows.map((r) => Number(r.points_awarded));
         const mean = pts.reduce((a, b) => a + b, 0) / pts.length;
@@ -705,24 +747,35 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
 // Monthly History & Champions Archive
 router.get('/monthly-history', optionalAuthenticateToken, async (req, res) => {
   try {
-    const monthsSql = `
+    const leagueId = req.query.leagueId ? Number(req.query.leagueId) : undefined;
+    let monthsSql = `
       SELECT DISTINCT SUBSTRING(match_date, 1, 7) as month
       FROM matches
       WHERE is_deleted = 0
-      ORDER BY month DESC
     `;
-    const monthsRows = await query<{ month: string }>(monthsSql);
+    const monthsParams: any[] = [];
+    if (leagueId && !isNaN(leagueId)) {
+      monthsSql += ' AND league_id = ?';
+      monthsParams.push(leagueId);
+    }
+    monthsSql += ' ORDER BY month DESC';
+
+    const monthsRows = await query<{ month: string }>(monthsSql, monthsParams);
 
     const history = [];
 
     for (const r of monthsRows) {
       const monthStr = r.month;
-      const leaderboard = await calculateLeaderboard({ month: monthStr });
+      const leaderboard = await calculateLeaderboard({ month: monthStr, leagueId });
       const champions = leaderboard.filter((p) => p.is_champion);
-      const totalMatchesRes = await query<{ count: number }>(
-        'SELECT COUNT(*) as count FROM matches WHERE match_date LIKE ? AND is_deleted = 0',
-        [`${monthStr}%`]
-      );
+
+      let totalMatchesSql = 'SELECT COUNT(*) as count FROM matches WHERE match_date LIKE ? AND is_deleted = 0';
+      const totalParams: any[] = [`${monthStr}%`];
+      if (leagueId && !isNaN(leagueId)) {
+        totalMatchesSql += ' AND league_id = ?';
+        totalParams.push(leagueId);
+      }
+      const totalMatchesRes = await query<{ count: number }>(totalMatchesSql, totalParams);
 
       history.push({
         month: monthStr,
@@ -741,11 +794,15 @@ router.get('/monthly-history', optionalAuthenticateToken, async (req, res) => {
 // Charts & Visualizations Data
 router.get('/charts', optionalAuthenticateToken, async (req, res) => {
   try {
-    const { playerId, month, year } = req.query;
+    const { playerId, month, year, leagueId } = req.query;
 
     // 1. Fetch all active matches in chronological order
     let matchFilterSql = 'WHERE m.is_deleted = 0';
     const matchFilterParams: any[] = [];
+    if (leagueId && !isNaN(Number(leagueId))) {
+      matchFilterSql += ' AND m.league_id = ?';
+      matchFilterParams.push(Number(leagueId));
+    }
     if (month && typeof month === 'string') {
       matchFilterSql += ' AND m.match_date LIKE ?';
       matchFilterParams.push(`${month}%`);

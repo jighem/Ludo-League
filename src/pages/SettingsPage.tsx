@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
 import { useSettings } from '../context/SettingsContext';
 import { useLeague } from '../context/LeagueContext';
+import { useAuth } from '../context/AuthContext';
 import { User, League } from '../types';
 import {
   Shield,
@@ -17,10 +18,14 @@ import {
   Edit2,
   X,
   Save,
-  Check
+  Check,
+  Trash2,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const { refreshSettings } = useSettings();
   const { leagues, refreshLeagues, activeLeagueId, setActiveLeagueId } = useLeague();
   const [users, setUsers] = useState<User[]>([]);
@@ -110,9 +115,17 @@ export const SettingsPage: React.FC = () => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    if (!name.trim() || !username.trim() || !password) {
+      setError('Please fill in all user fields (name, username, password).');
+      return;
+    }
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters long.');
+      return;
+    }
     try {
       setCreating(true);
-      await apiRequest('/auth/users', {
+      const res = await apiRequest<{ message?: string; user?: any }>('/auth/users', {
         method: 'POST',
         body: JSON.stringify({
           name: name.trim(),
@@ -121,7 +134,7 @@ export const SettingsPage: React.FC = () => {
           password
         })
       });
-      setSuccessMsg(`User ${username} created successfully.`);
+      setSuccessMsg(res.message || `User "${username.trim().toLowerCase()}" created successfully.`);
       setName('');
       setUsername('');
       setPassword('');
@@ -130,6 +143,41 @@ export const SettingsPage: React.FC = () => {
       setError(err.message || 'Failed to create user.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (userToToggle: User) => {
+    setError('');
+    setSuccessMsg('');
+    try {
+      const newStatus = userToToggle.is_active ? 0 : 1;
+      await apiRequest(`/auth/users/${userToToggle.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          is_active: newStatus
+        })
+      });
+      setSuccessMsg(`User ${userToToggle.username} ${newStatus ? 'activated' : 'deactivated'} successfully.`);
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user status.');
+    }
+  };
+
+  const handleDeleteUser = async (userToDelete: User) => {
+    if (!window.confirm(`Are you sure you want to remove user "${userToDelete.username}"?`)) {
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    try {
+      await apiRequest(`/auth/users/${userToDelete.id}`, {
+        method: 'DELETE'
+      });
+      setSuccessMsg(`User ${userToDelete.username} deleted successfully.`);
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete user.');
     }
   };
 
@@ -662,12 +710,21 @@ export const SettingsPage: React.FC = () => {
                     <th className="py-2.5 px-3">Name</th>
                     <th className="py-2.5 px-3">Username</th>
                     <th className="py-2.5 px-3">Role</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-700 dark:text-zinc-300">
                   {users.map((u) => (
                     <tr key={u.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/30">
-                      <td className="py-3 px-3 font-bold text-zinc-900 dark:text-zinc-100">{u.name}</td>
+                      <td className="py-3 px-3 font-bold text-zinc-900 dark:text-zinc-100">
+                        {u.name}
+                        {currentUser?.id === u.id && (
+                          <span className="ml-1.5 text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
+                            You
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 px-3 font-mono text-amber-600 dark:text-amber-400">{u.username}</td>
                       <td className="py-3 px-3">
                         <span
@@ -679,6 +736,39 @@ export const SettingsPage: React.FC = () => {
                         >
                           {u.role}
                         </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                            u.is_active
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {u.is_active ? 'Active' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end space-x-1.5">
+                          {currentUser?.id !== u.id && (
+                            <>
+                              <button
+                                onClick={() => handleToggleUserStatus(u)}
+                                className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                                title={u.is_active ? 'Deactivate User' : 'Activate User'}
+                              >
+                                {u.is_active ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(u)}
+                                className="p-1 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-500 cursor-pointer"
+                                title="Remove User"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

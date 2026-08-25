@@ -153,37 +153,134 @@ router.get('/users', authenticateToken, async (req: AuthenticatedRequest, res) =
   }
 });
 
-// Register new operator or admin user (Admin required)
-router.post('/register', authenticateToken, async (req: AuthenticatedRequest, res) => {
+// Register or create new operator or admin user (Admin required)
+const handleCreateUser = async (req: AuthenticatedRequest, res: any) => {
   try {
     if (req.user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin role required' });
+      return res.status(403).json({ error: 'Admin role required to create users' });
     }
     const { name, username, email, password, role } = req.body;
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'Name, username, and password are required' });
     }
 
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    }
+
+    const trimmedUsername = username.trim().toLowerCase();
     const userRole = role && ['admin', 'operator', 'viewer'].includes(role) ? role : 'operator';
 
-    const existing = await query<any>('SELECT id FROM users WHERE username = ?', [username.trim()]);
+    const existing = await query<any>('SELECT id FROM users WHERE username = ?', [trimmedUsername]);
     if (existing.length > 0) {
-      return res.status(400).json({ error: 'Username already taken' });
+      return res.status(400).json({ error: `Username "${trimmedUsername}" is already taken` });
     }
 
     const passwordHash = await hashPassword(password);
     const result = await execute(
       `INSERT INTO users (name, username, email, password_hash, role, is_active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [name.trim(), username.trim(), email?.trim() || null, passwordHash, userRole]
+      [name.trim(), trimmedUsername, email?.trim() || null, passwordHash, userRole]
     );
 
-    await logAudit(req, 'CREATE_USER', 'users', result.insertId, { username: username.trim(), role: userRole });
+    await logAudit(req, 'CREATE_USER', 'users', result.insertId, { username: trimmedUsername, role: userRole });
+
+    const newUser = {
+      id: result.insertId,
+      name: name.trim(),
+      username: trimmedUsername,
+      email: email?.trim() || null,
+      role: userRole,
+      is_active: 1
+    };
 
     return res.json({
-      message: 'User created successfully',
+      message: `User ${trimmedUsername} created successfully`,
+      user: newUser,
       userId: result.insertId
     });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+router.post('/users', authenticateToken, handleCreateUser);
+router.post('/register', authenticateToken, handleCreateUser);
+
+// Update system user details / role / status (Admin required)
+router.put('/users/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin role required' });
+    }
+
+    const userId = Number(req.params.id);
+    const { name, role, is_active, password } = req.body;
+
+    const existingUsers = await query<any>('SELECT * FROM users WHERE id = ?', [userId]);
+    if (existingUsers.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = existingUsers[0];
+
+    // Prevent deactivating or demoting the last active admin
+    if (user.role === 'admin' && (is_active === 0 || is_active === false || (role && role !== 'admin'))) {
+      const activeAdmins = await query<any>('SELECT id FROM users WHERE role = "admin" AND is_active = 1');
+      if (activeAdmins.length <= 1 && activeAdmins[0]?.id === userId) {
+        return res.status(400).json({ error: 'Cannot de-escalate or deactivate the only active system administrator.' });
+      }
+    }
+
+    const updatedName = name ? name.trim() : user.name;
+    const updatedRole = role && ['admin', 'operator', 'viewer'].includes(role) ? role : user.role;
+    const updatedActive = is_active !== undefined ? (is_active ? 1 : 0) : user.is_active;
+
+    if (password && password.trim()) {
+      if (password.length < 4) {
+        return res.status(400).json({ error: 'Password must be at least 4 characters' });
+      }
+      const newHash = await hashPassword(password);
+      await execute(
+        'UPDATE users SET name = ?, role = ?, is_active = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [updatedName, updatedRole, updatedActive, newHash, userId]
+      );
+    } else {
+      await execute(
+        'UPDATE users SET name = ?, role = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [updatedName, updatedRole, updatedActive, userId]
+      );
+    }
+
+    await logAudit(req, 'UPDATE_USER', 'users', userId, { role: updatedRole, is_active: updatedActive });
+
+    return res.json({ message: 'User updated successfully' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete user (Admin required)
+router.delete('/users/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin role required' });
+    }
+
+    const userId = Number(req.params.id);
+    if (req.user.id === userId) {
+      return res.status(400).json({ error: 'You cannot delete your own logged-in account.' });
+    }
+
+    const existingUsers = await query<any>('SELECT * FROM users WHERE id = ?', [userId]);
+    if (existingUsers.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await execute('DELETE FROM users WHERE id = ?', [userId]);
+    await logAudit(req, 'DELETE_USER', 'users', userId, { username: existingUsers[0].username });
+
+    return res.json({ message: 'User removed successfully' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

@@ -302,11 +302,22 @@ router.get('/:id', optionalAuthenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async (req: AuthenticatedRequest, res) => {
   try {
     const matchId = Number(req.params.id);
-    const { match_date, match_time, player_count, notes, results } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id } = req.body;
 
     const existingMatch = await query<any>('SELECT * FROM matches WHERE id = ? AND is_deleted = 0', [matchId]);
     if (existingMatch.length === 0) {
       return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const currentMatch = existingMatch[0];
+    const isAdmin = req.user?.role === 'admin';
+    const isOwner = currentMatch.created_by != null && req.user?.id != null && Number(currentMatch.created_by) === Number(req.user.id);
+
+    // Operator can only edit match entries created by themselves; Admin can edit any
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        error: 'Permission denied: Operators can only edit match entries recorded by themselves. Edits on entries created by others are reserved for administrators.'
+      });
     }
 
     const pCount = Number(player_count);
@@ -337,12 +348,13 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
     }
 
     const pointsMap = await getScoringRules(pCount);
+    const targetLeagueId = league_id && !isNaN(Number(league_id)) ? Number(league_id) : currentMatch.league_id;
 
     await transaction(async (tx) => {
       // Update match record
       await tx.execute(
-        `UPDATE matches SET match_date = ?, match_time = ?, player_count = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [match_date, match_time, pCount, notes?.trim() || null, matchId]
+        `UPDATE matches SET league_id = ?, match_date = ?, match_time = ?, player_count = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [targetLeagueId, match_date, match_time, pCount, notes?.trim() || null, matchId]
       );
 
       // Replace match results
@@ -361,7 +373,11 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       }
     });
 
-    await logAudit(req, 'EDIT_MATCH', 'matches', matchId, { friendlyId: existingMatch[0].friendly_id, match_date });
+    await logAudit(req, 'EDIT_MATCH', 'matches', matchId, {
+      friendlyId: currentMatch.friendly_id,
+      match_date,
+      editedByRole: req.user?.role
+    });
 
     return res.json({ message: 'Match updated successfully' });
   } catch (err: any) {
@@ -369,9 +385,15 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
   }
 });
 
-// Soft delete match (Admin only)
+// Soft delete match (Admin only - strict enforcement)
 router.delete('/:id', authenticateToken, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
   try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({
+        error: 'Permission denied: Only administrators are authorized to delete match entries.'
+      });
+    }
+
     const matchId = Number(req.params.id);
     const { reason } = req.body || {};
 
@@ -383,7 +405,11 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req: Aut
       [req.user?.id || null, matchId]
     );
 
-    await logAudit(req, 'DELETE_MATCH', 'matches', matchId, { friendlyId: existing[0].friendly_id, reason });
+    await logAudit(req, 'DELETE_MATCH', 'matches', matchId, {
+      friendlyId: existing[0].friendly_id,
+      deletedByAdmin: req.user?.username,
+      reason
+    });
 
     return res.json({ message: 'Match deleted successfully' });
   } catch (err: any) {

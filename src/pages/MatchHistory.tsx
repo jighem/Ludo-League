@@ -4,6 +4,7 @@ import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
+import { EditMatchModal } from '../components/EditMatchModal';
 import {
   History,
   Search,
@@ -12,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Edit2,
+  Lock,
   Plus,
   AlertTriangle,
   Trophy,
@@ -53,10 +56,21 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
   const [endDate, setEndDate] = useState<string>('');
 
   // Modals
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [deletingMatchId, setDeletingMatchId] = useState<number | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  // Permission helpers
+  const canEditMatch = (m: Match) => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.role === 'operator' && m.created_by != null && Number(m.created_by) === Number(user.id)) {
+      return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     fetchPlayers();
@@ -474,7 +488,9 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   <th className="py-3 px-3 text-zinc-400 whitespace-nowrap">4️⃣ 4th Place</th>
                   <th className="py-3 px-3 text-center whitespace-nowrap">Total Pts</th>
                   <th className="py-3 px-3 whitespace-nowrap">Notes</th>
-                  {user?.role === 'admin' && <th className="py-3 px-3 text-center whitespace-nowrap">Action</th>}
+                  {(user?.role === 'admin' || user?.role === 'operator') && (
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-800 dark:text-zinc-300">
@@ -484,6 +500,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   const p3 = m.results?.find((r) => r.position === 3);
                   const p4 = m.results?.find((r) => r.position === 4);
                   const matchTotal = m.results?.reduce((acc, curr) => acc + Number(curr.points_awarded), 0) || 0;
+                  const isEditable = canEditMatch(m);
 
                   return (
                     <tr
@@ -597,15 +614,36 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                       </td>
 
                       {/* Actions */}
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.role === 'operator') && (
                         <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <button
-                            onClick={() => setDeletingMatchId(m.id)}
-                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Match"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-center space-x-1">
+                            {isEditable ? (
+                              <button
+                                onClick={() => setEditingMatch(m)}
+                                className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                                title={user?.role === 'admin' ? 'Edit Match (Admin)' : 'Edit Match (Your Recorded Entry)'}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            ) : user?.role === 'operator' ? (
+                              <span
+                                className="p-1.5 text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
+                                title={`Recorded by ${m.created_by_name || 'another operator'} — Operators can only edit entries created by themselves`}
+                              >
+                                <Lock className="w-3.5 h-3.5" />
+                              </span>
+                            ) : null}
+
+                            {user?.role === 'admin' && (
+                              <button
+                                onClick={() => setDeletingMatchId(m.id)}
+                                className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Match (Admin Only)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -618,42 +656,65 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
       ) : (
         /* ======================== CARD VIEW ======================== */
         <div className="space-y-3">
-          {matches.map((m) => (
-            <div
-              key={m.id}
-              className="bg-white dark:bg-zinc-900/80 rounded-3xl p-5 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl hover:border-amber-500/40 transition-all space-y-3"
-            >
-              {/* Match Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-100 dark:border-zinc-800 text-xs">
-                <div className="flex items-center space-x-3">
-                  <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-sm">
-                    {m.friendly_id}
-                  </span>
-                  <span className="text-zinc-400">•</span>
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    📅 {formatDateStr(m.match_date)} at {m.match_time}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold text-[10px]">
-                    {m.player_count} Players
-                  </span>
-                </div>
+          {matches.map((m) => {
+            const isEditable = canEditMatch(m);
+            return (
+              <div
+                key={m.id}
+                className="bg-white dark:bg-zinc-900/80 rounded-3xl p-5 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl hover:border-amber-500/40 transition-all space-y-3"
+              >
+                {/* Match Header */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-100 dark:border-zinc-800 text-xs">
+                  <div className="flex items-center space-x-3">
+                    <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-sm">
+                      {m.friendly_id}
+                    </span>
+                    <span className="text-zinc-400">•</span>
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                      📅 {formatDateStr(m.match_date)} at {m.match_time}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold text-[10px]">
+                      {m.player_count} Players
+                    </span>
+                  </div>
 
-                <div className="flex items-center space-x-2">
-                  {m.created_by_name && (
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Recorded by {m.created_by_name}</span>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {m.created_by_name && (
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Recorded by {m.created_by_name}</span>
+                    )}
 
-                  {user?.role === 'admin' && (
-                    <button
-                      onClick={() => setDeletingMatchId(m.id)}
-                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
-                      title="Delete Match"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                    {(user?.role === 'admin' || user?.role === 'operator') && (
+                      <div className="flex items-center space-x-1 pl-2 border-l border-zinc-200 dark:border-zinc-800">
+                        {isEditable ? (
+                          <button
+                            onClick={() => setEditingMatch(m)}
+                            className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                            title={user?.role === 'admin' ? 'Edit Match (Admin)' : 'Edit Match (Your Recorded Entry)'}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        ) : user?.role === 'operator' ? (
+                          <span
+                            className="p-1.5 text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
+                            title={`Recorded by ${m.created_by_name || 'another operator'} — Operators can only edit entries created by themselves`}
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                          </span>
+                        ) : null}
+
+                        {user?.role === 'admin' && (
+                          <button
+                            onClick={() => setDeletingMatchId(m.id)}
+                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Match (Admin Only)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
               {/* Match Results Row */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -688,9 +749,10 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
+    )}
 
       {/* Pagination Bar */}
       {totalPages > 1 && (
@@ -762,6 +824,16 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Match Modal */}
+      {editingMatch && (
+        <EditMatchModal
+          isOpen={Boolean(editingMatch)}
+          match={editingMatch}
+          onClose={() => setEditingMatch(null)}
+          onMatchUpdated={fetchMatches}
+        />
       )}
     </div>
   );

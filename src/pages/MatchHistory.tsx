@@ -25,7 +25,8 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
-  Crown
+  Crown,
+  RefreshCw
 } from 'lucide-react';
 
 interface MatchHistoryProps {
@@ -35,10 +36,11 @@ interface MatchHistoryProps {
 
 export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOpenNewMatch }) => {
   const { user } = useAuth();
-  const { activeLeague, activeLeagueId } = useLeague();
+  const { activeLeague, activeLeagueId, dataVersion, triggerDataRefresh } = useLeague();
   const [matches, setMatches] = useState<Match[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
@@ -74,11 +76,11 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
 
   useEffect(() => {
     fetchPlayers();
-  }, []);
+  }, [dataVersion]);
 
   useEffect(() => {
     fetchMatches();
-  }, [page, limit, filterMonth, selectedPlayerId, selectedPlayerCount, startDate, endDate, activeLeagueId]);
+  }, [page, limit, filterMonth, selectedPlayerId, selectedPlayerCount, startDate, endDate, activeLeagueId, dataVersion]);
 
   const fetchPlayers = async () => {
     try {
@@ -91,7 +93,8 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
 
   const fetchMatches = async () => {
     try {
-      setLoading(true);
+      if (matches.length === 0) setLoading(true);
+      setIsRefreshing(true);
       let endpoint = `/matches?page=${page}&limit=${limit}`;
       if (activeLeagueId) endpoint += `&leagueId=${activeLeagueId}`;
       if (filterMonth) endpoint += `&month=${filterMonth}`;
@@ -108,6 +111,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
       console.error('Failed to load match history:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -131,6 +135,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
       });
       setDeletingMatchId(null);
       setDeleteReason('');
+      triggerDataRefresh();
       fetchMatches();
     } catch (err: any) {
       setActionError(err.message || 'Failed to delete match.');
@@ -268,6 +273,20 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
+          </button>
+
+          <button
+            id="btn-match-history-refresh"
+            onClick={() => {
+              triggerDataRefresh();
+              fetchMatches();
+            }}
+            disabled={isRefreshing}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
+            title="Refresh Matches & Tally Sheet"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-500' : ''}`} />
+            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           {(user?.role === 'admin' || user?.role === 'operator') && (

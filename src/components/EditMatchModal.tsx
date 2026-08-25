@@ -31,7 +31,7 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
   onMatchUpdated
 }) => {
   const { user } = useAuth();
-  const { leagues } = useLeague();
+  const { leagues, triggerDataRefresh } = useLeague();
   const [selectedLeagueId, setSelectedLeagueId] = useState<number>(1);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scoringRules, setScoringRules] = useState<Record<number, Record<number, number>>>({
@@ -190,6 +190,7 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
         })
       });
 
+      triggerDataRefresh();
       onMatchUpdated();
       onClose();
     } catch (err: any) {

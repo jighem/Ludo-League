@@ -18,7 +18,8 @@ import {
   ChevronRight,
   TrendingUp,
   AlertCircle,
-  Crown
+  Crown,
+  RefreshCw
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -34,8 +35,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const { user } = useAuth();
   const { appName } = useSettings();
-  const { activeLeague, activeLeagueId } = useLeague();
+  const { activeLeague, activeLeagueId, dataVersion, triggerDataRefresh } = useLeague();
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState<{
     summary: {
@@ -55,11 +57,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     fetchDashboardData();
-  }, [activeLeagueId]);
+  }, [activeLeagueId, dataVersion]);
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!data) setLoading(true);
+      setIsRefreshing(true);
       setError('');
       const endpoint = activeLeagueId ? `/stats/dashboard?leagueId=${activeLeagueId}` : '/stats/dashboard';
       const res = await apiRequest(endpoint);
@@ -68,6 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setError(err.message || 'Failed to load dashboard data.');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -152,6 +156,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             >
               <span>Full Standings</span>
               <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <button
+              id="btn-dashboard-refresh"
+              onClick={() => triggerDataRefresh()}
+              disabled={isRefreshing}
+              className="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/20 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 text-white dark:text-zinc-200 font-bold rounded-xl border border-white/20 dark:border-zinc-700/80 transition-all cursor-pointer text-xs ml-auto disabled:opacity-50"
+              title="Refresh Dashboard Statistics"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-300' : ''}`} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Updating...' : 'Refresh'}</span>
             </button>
           </div>
         </div>

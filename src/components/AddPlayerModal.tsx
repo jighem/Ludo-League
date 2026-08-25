@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { useSettings } from '../context/SettingsContext';
+import { useLeague } from '../context/LeagueContext';
 import { X, UserPlus, AlertCircle } from 'lucide-react';
 
 interface AddPlayerModalProps {
@@ -12,6 +13,7 @@ interface AddPlayerModalProps {
 
 export const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ isOpen, onClose, onPlayerAdded }) => {
   const { appName } = useSettings();
+  const { triggerDataRefresh } = useLeague();
   const [fullName, setFullName] = useState('');
   const [nickname, setNickname] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -42,6 +44,7 @@ export const AddPlayerModal: React.FC<AddPlayerModalProps> = ({ isOpen, onClose,
         })
       });
 
+      triggerDataRefresh();
       onPlayerAdded(res.player);
       setFullName('');
       setNickname('');

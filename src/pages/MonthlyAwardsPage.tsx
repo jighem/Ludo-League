@@ -4,7 +4,7 @@ import { useLeague } from '../context/LeagueContext';
 import { Award, Trophy, Flame, TrendingUp, Target, Calendar, ChevronRight, Crown } from 'lucide-react';
 
 export const MonthlyAwardsPage: React.FC<{ onSelectPlayer?: (playerId: number) => void }> = ({ onSelectPlayer }) => {
-  const { activeLeague, activeLeagueId } = useLeague();
+  const { activeLeague, activeLeagueId, dataVersion } = useLeague();
   const now = new Date();
   const currentMonthStr = now.toISOString().split('T')[0].substring(0, 7);
 
@@ -16,7 +16,7 @@ export const MonthlyAwardsPage: React.FC<{ onSelectPlayer?: (playerId: number) =
   useEffect(() => {
     fetchAwards();
     fetchHistory();
-  }, [selectedMonth, activeLeagueId]);
+  }, [selectedMonth, activeLeagueId, dataVersion]);
 
   const fetchAwards = async () => {
     try {

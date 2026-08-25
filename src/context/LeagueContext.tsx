@@ -6,20 +6,28 @@ interface LeagueContextType {
   leagues: League[];
   activeLeague: League | null;
   activeLeagueId: number;
+  dataVersion: number;
   loadingLeagues: boolean;
   setActiveLeagueId: (id: number) => void;
   refreshLeagues: () => Promise<void>;
+  triggerDataRefresh: () => void;
 }
 
 const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
 
 export const LeagueProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [leagues, setLeagues] = useState<League[]>([]);
+  const [dataVersion, setDataVersion] = useState<number>(0);
   const [activeLeagueId, setActiveLeagueIdState] = useState<number>(() => {
     const saved = localStorage.getItem('ludo_active_league_id');
     return saved ? Number(saved) : 1;
   });
   const [loadingLeagues, setLoadingLeagues] = useState<boolean>(true);
+
+  const triggerDataRefresh = () => {
+    setDataVersion((v) => v + 1);
+    refreshLeagues();
+  };
 
   const refreshLeagues = async () => {
     try {
@@ -63,9 +71,11 @@ export const LeagueProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         leagues,
         activeLeague,
         activeLeagueId,
+        dataVersion,
         loadingLeagues,
         setActiveLeagueId,
-        refreshLeagues
+        refreshLeagues,
+        triggerDataRefresh
       }}
     >
       {children}

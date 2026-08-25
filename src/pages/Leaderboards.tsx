@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LeaderboardItem } from '../types';
 import { apiRequest } from '../api/client';
 import { useLeague } from '../context/LeagueContext';
-import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown } from 'lucide-react';
+import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown, RefreshCw } from 'lucide-react';
 
 interface LeaderboardsProps {
   onSelectPlayer: (playerId: number) => void;
@@ -10,7 +10,7 @@ interface LeaderboardsProps {
 }
 
 export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) => {
-  const { activeLeague, activeLeagueId } = useLeague();
+  const { activeLeague, activeLeagueId, dataVersion, triggerDataRefresh } = useLeague();
   const [tab, setTab] = useState<'monthly' | 'yearly' | 'alltime'>('monthly');
 
   const now = new Date();
@@ -23,15 +23,17 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [minQualThreshold, setMinQualThreshold] = useState<number>(8);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [tab, selectedMonth, selectedYear, activeLeagueId]);
+  }, [tab, selectedMonth, selectedYear, activeLeagueId, dataVersion]);
 
   const fetchLeaderboard = async () => {
     try {
-      setLoading(true);
+      if (leaderboard.length === 0) setLoading(true);
+      setIsRefreshing(true);
       setError('');
       let endpoint = `/stats/leaderboard?leagueId=${activeLeagueId || 1}&`;
       if (tab === 'monthly') {
@@ -47,6 +49,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
       setError(err.message || 'Failed to fetch leaderboard.');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -75,13 +78,27 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center space-x-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer border border-zinc-200 dark:border-transparent"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer border border-zinc-200 dark:border-zinc-700"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
+          </button>
+
+          <button
+            id="btn-leaderboard-refresh"
+            onClick={() => {
+              triggerDataRefresh();
+              fetchLeaderboard();
+            }}
+            disabled={isRefreshing}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer border border-zinc-200 dark:border-zinc-700 disabled:opacity-50"
+            title="Refresh Leaderboard"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-amber-500' : ''}`} />
+            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>

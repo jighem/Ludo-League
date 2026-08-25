@@ -22,7 +22,7 @@ interface NewMatchModalProps {
 }
 
 export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, onMatchSaved }) => {
-  const { leagues, activeLeagueId } = useLeague();
+  const { leagues, activeLeagueId, setActiveLeagueId, triggerDataRefresh } = useLeague();
   const [selectedLeagueId, setSelectedLeagueId] = useState<number>(activeLeagueId || 1);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scoringRules, setScoringRules] = useState<Record<number, Record<number, number>>>({
@@ -200,6 +200,12 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
         friendlyId: res.friendlyId,
         leagueName: currentLg?.name || 'League'
       });
+
+      if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
+        setActiveLeagueId(selectedLeagueId);
+      }
+
+      triggerDataRefresh();
       onMatchSaved();
     } catch (err: any) {
       setError(err.message || 'Failed to save match.');

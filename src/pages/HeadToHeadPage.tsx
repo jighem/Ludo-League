@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { useLeague } from '../context/LeagueContext';
 import { Swords, Users, Trophy, ChevronRight, BarChart2 } from 'lucide-react';
 
 export const HeadToHeadPage: React.FC = () => {
+  const { dataVersion } = useLeague();
   const [mode, setMode] = useState<'h2h' | 'multi'>('h2h');
   const [players, setPlayers] = useState<Player[]>([]);
 
@@ -21,7 +23,7 @@ export const HeadToHeadPage: React.FC = () => {
 
   useEffect(() => {
     fetchPlayers();
-  }, []);
+  }, [dataVersion]);
 
   const fetchPlayers = async () => {
     try {

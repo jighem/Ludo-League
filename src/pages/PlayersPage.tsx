@@ -3,6 +3,7 @@ import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
 import { useAuth } from '../context/AuthContext';
+import { useLeague } from '../context/LeagueContext';
 import { AddPlayerModal } from '../components/AddPlayerModal';
 import {
   Users,
@@ -14,7 +15,8 @@ import {
   Mail,
   Phone,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 interface PlayersPageProps {
@@ -23,6 +25,7 @@ interface PlayersPageProps {
 
 export const PlayersPage: React.FC<PlayersPageProps> = ({ onSelectPlayer }) => {
   const { user } = useAuth();
+  const { dataVersion, triggerDataRefresh } = useLeague();
   const [players, setPlayers] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -41,7 +44,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onSelectPlayer }) => {
 
   useEffect(() => {
     fetchPlayers();
-  }, [search, statusFilter]);
+  }, [search, statusFilter, dataVersion]);
 
   const fetchPlayers = async () => {
     try {
@@ -85,6 +88,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onSelectPlayer }) => {
         })
       });
       setEditingPlayer(null);
+      triggerDataRefresh();
       fetchPlayers();
     } catch (err: any) {
       setActionError(err.message || 'Failed to update player.');

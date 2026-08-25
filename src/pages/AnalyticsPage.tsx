@@ -80,13 +80,15 @@ export const AnalyticsPage: React.FC<{ onSelectPlayer?: (playerId: number) => vo
   // Selected player lines to show in multi-line chart (defaults to all active players with data)
   const [visiblePlayers, setVisiblePlayers] = useState<Set<string>>(new Set());
 
+  const { dataVersion } = useLeague();
+
   useEffect(() => {
     fetchPlayers();
-  }, []);
+  }, [dataVersion]);
 
   useEffect(() => {
     fetchChartsData();
-  }, [selectedPlayerId, filterMonth, activeLeagueId]);
+  }, [selectedPlayerId, filterMonth, activeLeagueId, dataVersion]);
 
   const fetchPlayers = async () => {
     try {

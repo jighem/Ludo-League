@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { useLeague } from '../context/LeagueContext';
 import {
   User,
   Trophy,
@@ -16,11 +17,12 @@ import {
 } from 'lucide-react';
 
 interface PlayerProfileProps {
-  playerId: number;
+  playerId: number | null;
   onBack: () => void;
 }
 
 export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }) => {
+  const { dataVersion } = useLeague();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{
     player: Player;
@@ -69,8 +71,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
   } | null>(null);
 
   useEffect(() => {
-    fetchProfile();
-  }, [playerId]);
+    if (playerId) {
+      fetchProfile();
+    }
+  }, [playerId, dataVersion]);
 
   const fetchProfile = async () => {
     try {

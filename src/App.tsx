@@ -168,8 +168,7 @@ function MainApp() {
         isOpen={isNewMatchOpen}
         onClose={() => setIsNewMatchOpen(false)}
         onMatchSaved={() => {
-          setIsNewMatchOpen(false);
-          // Force refresh page if needed or let components refetch
+          // Data is refreshed reactively via LeagueContext
         }}
       />
 

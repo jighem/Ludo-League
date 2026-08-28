@@ -19,7 +19,8 @@ import {
   TrendingUp,
   AlertCircle,
   Crown,
-  RefreshCw
+  RefreshCw,
+  Gamepad2
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -139,14 +140,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              id="btn-dashboard-play-ludo"
+              onClick={() => onNavigateTab('play-ludo')}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-zinc-950 font-black rounded-xl shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer text-xs"
+            >
+              <Gamepad2 className="w-4 h-4 stroke-[2.5]" />
+              <span>🎲 Play Live Ludo</span>
+            </button>
+
             {(user?.role === 'admin' || user?.role === 'operator') && (
               <button
                 id="btn-quick-record-match-hero"
                 onClick={onOpenNewMatch}
-                className="inline-flex items-center space-x-2 px-5 py-2.5 bg-zinc-950 dark:bg-gradient-to-r dark:from-amber-400 dark:via-amber-500 dark:to-orange-500 hover:bg-zinc-900 dark:hover:from-amber-500 dark:hover:to-orange-600 text-white dark:text-zinc-950 font-black rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer text-xs"
+                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-zinc-950 dark:bg-zinc-800 hover:bg-zinc-900 dark:hover:bg-zinc-700 text-white dark:text-zinc-100 font-extrabold rounded-xl shadow-md active:scale-95 transition-all cursor-pointer text-xs border border-white/10"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
-                <span>+ Record Match</span>
+                <span>Manual Entry</span>
               </button>
             )}
 

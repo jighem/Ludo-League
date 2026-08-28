@@ -50,6 +50,8 @@ export async function calculateLeaderboard(options: {
       COALESCE(SUM(ar.points_awarded), 0) as total_points,
       COALESCE(ROUND(AVG(ar.points_awarded), 2), 0) as average_score,
       COALESCE(ROUND(AVG(ar.position), 2), 0) as average_position,
+      COALESCE(SUM(ar.kills), 0) as total_kills,
+      COALESCE(SUM(ar.deaths), 0) as total_deaths,
       SUM(CASE WHEN ar.position = 1 THEN 1 ELSE 0 END) as wins_1st,
       SUM(CASE WHEN ar.position = 2 THEN 1 ELSE 0 END) as pos_2nd,
       SUM(CASE WHEN ar.position = 3 THEN 1 ELSE 0 END) as pos_3rd,
@@ -58,7 +60,7 @@ export async function calculateLeaderboard(options: {
       SUM(CASE WHEN ar.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
     FROM players p
     LEFT JOIN (
-      SELECT mr.player_id, mr.points_awarded, mr.position, m.player_count, m.id as match_id
+      SELECT mr.player_id, mr.points_awarded, mr.position, mr.kills, mr.deaths, m.player_count, m.id as match_id
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE m.is_deleted = 0 ${dateFilter}
@@ -80,6 +82,9 @@ export async function calculateLeaderboard(options: {
     const pos4 = Number(r.pos_4th) || 0;
     const lastPlace = Number(r.last_place) || 0;
     const podium = Number(r.podium_finishes) || 0;
+    const totalKills = Number(r.total_kills) || 0;
+    const totalDeaths = Number(r.total_deaths) || 0;
+    const netCombatPts = (totalKills * 5) - (totalDeaths * 5);
 
     const winPct = totalMatches > 0 ? Number(((wins / totalMatches) * 100).toFixed(1)) : 0;
     const podiumPct = totalMatches > 0 ? Number(((podium / totalMatches) * 100).toFixed(1)) : 0;
@@ -105,7 +110,10 @@ export async function calculateLeaderboard(options: {
       podium_pct: podiumPct,
       is_qualified: isQualified,
       rank: 0,
-      is_champion: false
+      is_champion: false,
+      total_kills: totalKills,
+      total_deaths: totalDeaths,
+      net_combat_points: netCombatPts
     };
   });
 
@@ -249,6 +257,20 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
     const sortedByWinRate = [...leaderboard].filter((p) => p.total_matches >= 3).sort((a, b) => b.win_pct - a.win_pct);
     const highestWinRatePlayer = sortedByWinRate[0] ? `${sortedByWinRate[0].full_name} (${sortedByWinRate[0].win_pct}%)` : 'N/A';
 
+    // Most killed / knocked out this month
+    const sortedByDeaths = [...leaderboard].sort((a, b) => b.total_deaths - a.total_deaths || b.total_matches - a.total_matches);
+    const mostKilledPlayer = sortedByDeaths[0] && sortedByDeaths[0].total_deaths > 0
+      ? `${sortedByDeaths[0].full_name} (${sortedByDeaths[0].total_deaths} times)`
+      : 'None (0 deaths)';
+    const mostKilledData = sortedByDeaths[0] && sortedByDeaths[0].total_deaths > 0 ? sortedByDeaths[0] : null;
+
+    // Top hunter / killer this month
+    const sortedByKills = [...leaderboard].sort((a, b) => b.total_kills - a.total_kills || b.total_matches - a.total_matches);
+    const topHunterPlayer = sortedByKills[0] && sortedByKills[0].total_kills > 0
+      ? `${sortedByKills[0].full_name} (${sortedByKills[0].total_kills} kills)`
+      : 'None (0 kills)';
+    const topHunterData = sortedByKills[0] && sortedByKills[0].total_kills > 0 ? sortedByKills[0] : null;
+
     return res.json({
       summary: {
         matchesToday: todayRes[0]?.count || 0,
@@ -258,7 +280,11 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
         currentLeaderAverage: leaderAvg,
         mostWinsThisMonth: mostWinsPlayer,
         mostActivePlayer,
-        highestWinRatePlayer
+        highestWinRatePlayer,
+        mostKilledThisMonth: mostKilledPlayer,
+        mostKilledData,
+        topHunterThisMonth: topHunterPlayer,
+        topHunterData
       },
       latestMatch,
       leaderboard: leaderboard.slice(0, 10), // Top 10 for dashboard

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
@@ -114,6 +115,17 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE users ADD COLUMN allowed_leagues TEXT NULL AFTER role;`);
         }
 
+        // Check if kills and deaths columns exist on match_results table
+        const [mrCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'match_results' AND COLUMN_NAME = 'kills';
+        `);
+        if (mrCols.length === 0) {
+          console.log('Adding kills and deaths columns to MySQL match_results table...');
+          await mysqlPool.query(`ALTER TABLE match_results ADD COLUMN kills INT NOT NULL DEFAULT 0 AFTER points_awarded;`);
+          await mysqlPool.query(`ALTER TABLE match_results ADD COLUMN deaths INT NOT NULL DEFAULT 0 AFTER kills;`);
+        }
+
         // Ensure default AC Ludo League 1 exists
         await mysqlPool.query(`
           INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
@@ -214,6 +226,8 @@ function initEmbeddedSchema() {
       player_id INTEGER NOT NULL,
       position INTEGER NOT NULL,
       points_awarded DECIMAL(8,2) NOT NULL,
+      kills INTEGER NOT NULL DEFAULT 0,
+      deaths INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE (match_id, player_id),
@@ -260,6 +274,10 @@ function initEmbeddedSchema() {
     INSERT OR IGNORE INTO leagues (id, name, code, description, is_active, is_default) VALUES
     (1, 'AC Ludo League 1', 'AC-LUDO-1', 'The primary competitive Ludo championship league.', 1, 1);
 
+    -- Ensure default administrator exists (username: admin, pass: admin123)
+    INSERT OR IGNORE INTO users (id, name, username, email, password_hash, role, is_active) VALUES
+    (1, 'League Administrator', 'admin', 'admin@example.com', '$2a$10$89W1hB5tZq2y8j2b4E1qzeWqPj67G4QkG194.2hP20lQ6D7P/k/Y.', 'admin', 1);
+
     INSERT OR IGNORE INTO scoring_rules (player_count, pos1_points, pos2_points, pos3_points, pos4_points) VALUES
     (4, 50.00, 30.00, 20.00, 0.00),
     (3, 62.50, 37.50, 0.00, 0.00),
@@ -298,6 +316,19 @@ function initEmbeddedSchema() {
     const colsUser = tableInfoUser[0]?.values?.map((v: any) => v[1]) || [];
     if (!colsUser.includes('allowed_leagues')) {
       sqlJsDb.exec('ALTER TABLE users ADD COLUMN allowed_leagues TEXT DEFAULT NULL;');
+    }
+  } catch (err) {
+    // Already exists or fresh db
+  }
+
+  try {
+    const tableInfoMr = sqlJsDb.exec("PRAGMA table_info('match_results');");
+    const colsMr = tableInfoMr[0]?.values?.map((v: any) => v[1]) || [];
+    if (!colsMr.includes('kills')) {
+      sqlJsDb.exec('ALTER TABLE match_results ADD COLUMN kills INTEGER NOT NULL DEFAULT 0;');
+    }
+    if (!colsMr.includes('deaths')) {
+      sqlJsDb.exec('ALTER TABLE match_results ADD COLUMN deaths INTEGER NOT NULL DEFAULT 0;');
     }
   } catch (err) {
     // Already exists or fresh db

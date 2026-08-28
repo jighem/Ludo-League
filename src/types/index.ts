@@ -39,6 +39,8 @@ export interface Player {
 export interface MatchResultInput {
   player_id: number;
   position: number;
+  kills?: number;
+  deaths?: number;
 }
 
 export interface MatchResult {
@@ -50,6 +52,8 @@ export interface MatchResult {
   profile_photo?: string;
   position: number;
   points_awarded: number;
+  kills: number;
+  deaths: number;
 }
 
 export interface Match {
@@ -89,6 +93,9 @@ export interface LeaderboardItem {
   is_qualified: boolean;
   rank: number;
   is_champion: boolean;
+  total_kills: number;
+  total_deaths: number;
+  net_combat_points: number;
 }
 
 export interface ScoringRule {

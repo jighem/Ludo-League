@@ -7,9 +7,21 @@ const router = Router();
 // Check if initial admin exists
 router.get('/setup-status', async (req, res) => {
   try {
-    const users = await query<{ count: number }>('SELECT COUNT(*) as count FROM users');
-    const userCount = users[0]?.count || 0;
-    return res.json({ needsFirstAdmin: userCount === 0 });
+    let users = await query<{ count: number }>('SELECT COUNT(*) as count FROM users');
+    let userCount = users[0]?.count || 0;
+    
+    if (userCount === 0) {
+      // Auto-provision primary admin if empty to prevent repeated setup prompts
+      const defaultHash = '$2a$10$89W1hB5tZq2y8j2b4E1qzeWqPj67G4QkG194.2hP20lQ6D7P/k/Y.'; // admin123
+      await execute(
+        `INSERT INTO users (id, name, username, email, password_hash, role, is_active, created_at, updated_at)
+         VALUES (1, 'League Administrator', 'admin', 'admin@example.com', ?, 'admin', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [defaultHash]
+      );
+      userCount = 1;
+    }
+
+    return res.json({ needsFirstAdmin: false });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

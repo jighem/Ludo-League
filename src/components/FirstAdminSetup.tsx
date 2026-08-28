@@ -166,6 +166,19 @@ export const FirstAdminSetup: React.FC = () => {
             <UserPlus className="w-5 h-5" />
             <span>{submitting ? 'Creating Administrator...' : 'Create Admin Account'}</span>
           </button>
+
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                // If user already exists or user wants to proceed to normal view
+                window.location.reload();
+              }}
+              className="text-xs font-semibold text-slate-500 hover:text-amber-500 transition-colors cursor-pointer"
+            >
+              Already have an account? Dismiss & Log In
+            </button>
+          </div>
         </form>
       </div>
     </div>

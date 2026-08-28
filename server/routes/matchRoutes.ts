@@ -166,12 +166,16 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
       for (const r of results) {
         const pid = Number(r.player_id);
         const pos = Number(r.position);
-        const points = pointsMap[pos as keyof typeof pointsMap] || 0.0;
+        const kills = Math.max(0, Number(r.kills) || 0);
+        const deaths = Math.max(0, Number(r.deaths) || 0);
+        const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
+        // Combat rule: +5 pts per kill, -5 pts per death
+        const points = Number((basePoints + (kills * 5) - (deaths * 5)).toFixed(2));
 
         await tx.execute(
-          `INSERT INTO match_results (match_id, player_id, position, points_awarded, created_at, updated_at)
-           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          [matchId, pid, pos, points]
+          `INSERT INTO match_results (match_id, player_id, position, points_awarded, kills, deaths, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [matchId, pid, pos, points, kills, deaths]
         );
       }
 
@@ -390,12 +394,16 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       for (const r of results) {
         const pid = Number(r.player_id);
         const pos = Number(r.position);
-        const points = pointsMap[pos as keyof typeof pointsMap] || 0.0;
+        const kills = Math.max(0, Number(r.kills) || 0);
+        const deaths = Math.max(0, Number(r.deaths) || 0);
+        const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
+        // Combat rule: +5 pts per kill, -5 pts per death
+        const points = Number((basePoints + (kills * 5) - (deaths * 5)).toFixed(2));
 
         await tx.execute(
-          `INSERT INTO match_results (match_id, player_id, position, points_awarded, created_at, updated_at)
-           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          [matchId, pid, pos, points]
+          `INSERT INTO match_results (match_id, player_id, position, points_awarded, kills, deaths, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [matchId, pid, pos, points, kills, deaths]
         );
       }
     });

@@ -14,6 +14,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { MonthlyAwardsPage } from './pages/MonthlyAwardsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { InstallationPage } from './pages/InstallationPage';
+import { PlayLudoPage } from './pages/PlayLudoPage';
 import { NewMatchModal } from './components/NewMatchModal';
 import { AddPlayerModal } from './components/AddPlayerModal';
 import { LoginModal } from './components/LoginModal';
@@ -54,6 +55,14 @@ function MainApp() {
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'play-ludo':
+        return (
+          <PlayLudoPage
+            onNavigateTab={setActiveTab}
+            onOpenNewMatch={() => setIsNewMatchOpen(true)}
+            onOpenLogin={() => setIsLoginOpen(true)}
+          />
+        );
       case 'dashboard':
         return (
           <Dashboard

@@ -4,6 +4,7 @@ import { apiRequest } from '../api/client';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { AddPlayerModal } from './AddPlayerModal';
+import { LudoRulesModal } from './ludo/LudoRulesModal';
 import {
   X,
   Plus,
@@ -14,7 +15,8 @@ import {
   Clock,
   RotateCcw,
   Crown,
-  ShieldAlert
+  ShieldAlert,
+  BookOpen
 } from 'lucide-react';
 
 interface NewMatchModalProps {
@@ -77,9 +79,14 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
   const [error, setError] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState<{ friendlyId: string; leagueName: string } | null>(null);
+  const [savedSuccess, setSavedSuccess] = useState<{
+    friendlyId: string;
+    leagueName: string;
+    breakdown: { pos: number; name: string; pts: number; icon: string }[];
+  } | null>(null);
 
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -228,9 +235,22 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
       });
 
       const currentLg = leagues.find((l) => l.id === selectedLeagueId);
+      const breakdown = results.map((r) => {
+        const found = players.find((p) => p.id === r.player_id);
+        const pts = currentPoints[r.position as keyof typeof currentPoints] || 0;
+        const icon = r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : '4️⃣';
+        return {
+          pos: r.position,
+          name: found ? `${found.full_name}${found.nickname ? ` (${found.nickname})` : ''}` : `Player ${r.player_id}`,
+          pts,
+          icon
+        };
+      });
+
       setSavedSuccess({
         friendlyId: res.friendlyId,
-        leagueName: currentLg?.name || 'League'
+        leagueName: currentLg?.name || 'League',
+        breakdown
       });
 
       if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
@@ -302,10 +322,46 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                 <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 mt-1">
                   Reference: <span className="underline">{savedSuccess.friendlyId}</span> in <span className="font-extrabold">{savedSuccess.leagueName}</span>
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
-                  Points have been dynamically updated in the leaderboard and analytics for this league.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+                  Points have been dynamically distributed and saved to the league leaderboard.
                 </p>
               </div>
+
+              {/* Ranks and Scores Breakdown for 1st, 2nd, 3rd, 4th */}
+              {savedSuccess.breakdown && savedSuccess.breakdown.length > 0 && (
+                <div className="max-w-md mx-auto space-y-2 text-left pt-2">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 text-center mb-1">
+                    Standings & Awarded Points
+                  </div>
+                  {savedSuccess.breakdown.map((item) => (
+                    <div
+                      key={item.pos}
+                      className={`p-3 rounded-2xl border flex items-center justify-between ${
+                        item.pos === 1
+                          ? 'bg-amber-500/10 border-amber-400 text-slate-900 dark:text-white ring-1 ring-amber-400/30'
+                          : item.pos === 2
+                          ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white'
+                          : item.pos === 3
+                          ? 'bg-amber-900/10 border-amber-700/40 text-slate-900 dark:text-white'
+                          : 'bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xl">{item.icon}</span>
+                        <div>
+                          <div className="text-xs font-black">{item.name}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">
+                            {item.pos === 1 ? '1st Place Winner' : `${item.pos === 2 ? '2nd' : item.pos === 3 ? '3rd' : '4th'} Place`}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs font-black text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                        +{item.pts} pts
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
@@ -460,14 +516,25 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                   <span className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
                     Player Finishing Ranks
                   </span>
-                  <button
-                    id="btn-quick-add-player"
-                    onClick={() => setAddPlayerModalOpen(true)}
-                    className="inline-flex items-center space-x-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add New Player</span>
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      id="btn-view-rules-modal-in-newmatch"
+                      type="button"
+                      onClick={() => setShowRulesModal(true)}
+                      className="inline-flex items-center space-x-1 text-xs font-bold text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 cursor-pointer"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>Rules & Points</span>
+                    </button>
+                    <button
+                      id="btn-quick-add-player"
+                      onClick={() => setAddPlayerModalOpen(true)}
+                      className="inline-flex items-center space-x-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add New Player</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -564,6 +631,12 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
         isOpen={addPlayerModalOpen}
         onClose={() => setAddPlayerModalOpen(false)}
         onPlayerAdded={handlePlayerAddedInline}
+      />
+
+      {/* Rules Modal */}
+      <LudoRulesModal
+        isOpen={showRulesModal}
+        onClose={() => setShowRulesModal(false)}
       />
     </>
   );

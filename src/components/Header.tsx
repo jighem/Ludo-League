@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
-import { Trophy, Plus, LogIn, LogOut, Sun, Moon, ChevronDown, Check, ShieldCheck, Flame, Crown } from 'lucide-react';
+import { Trophy, Plus, LogIn, LogOut, Sun, Moon, ChevronDown, Check, ShieldCheck, Flame, Crown, Gamepad2 } from 'lucide-react';
 
 interface HeaderProps {
   appName: string;
@@ -17,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   appName,
   onOpenNewMatch,
   onOpenLogin,
+  activeTab,
+  setActiveTab,
   darkMode,
   setDarkMode
 }) => {
@@ -124,6 +126,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right: Quick Actions, Theme Toggle & Auth */}
           <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Play Ludo Button */}
+            <button
+              id="btn-play-ludo-header"
+              onClick={() => setActiveTab('play-ludo')}
+              className={`inline-flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 text-xs font-black rounded-xl border transition-all cursor-pointer shrink-0 ${
+                activeTab === 'play-ludo'
+                  ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-md shadow-amber-500/20'
+                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+              }`}
+              title="Play Live Ludo Game"
+            >
+              <Gamepad2 className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="hidden sm:inline">Play Ludo</span>
+              <span className="sm:hidden">Play</span>
+            </button>
+
             {/* Record Match Button */}
             {(user?.role === 'admin' || user?.role === 'operator') && (
               <button

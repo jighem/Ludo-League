@@ -19,6 +19,17 @@ import { useAuth } from '../context/AuthContext';
 import { Player, ScoringRule } from '../types';
 import { apiRequest } from '../api/client';
 import {
+  saveActiveLudoSession,
+  loadActiveLudoSession,
+  clearActiveLudoSession,
+  queuePendingMatch,
+  getPendingMatches,
+  syncPendingMatches,
+  isBrowserOnline,
+  initNetworkAutoSync,
+  LudoSavedSession
+} from '../utils/ludoOfflineSync';
+import {
   Trophy,
   Play,
   RotateCcw,
@@ -43,7 +54,12 @@ import {
   Shield,
   Dice5,
   Zap,
-  Target
+  Target,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Cloud,
+  HardDrive
 } from 'lucide-react';
 
 type GameMode = 'classic' | 'quick'; // Classic = 4 tokens home, Quick = 1 token home
@@ -101,6 +117,12 @@ export const PlayLudoPage: React.FC<{
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
   const [showOnPageRules, setShowOnPageRules] = useState<boolean>(true);
 
+  // Offline & Auto-Recovery State
+  const [isOnline, setIsOnline] = useState<boolean>(() => isBrowserOnline());
+  const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(() => getPendingMatches().length);
+  const [isSyncingOffline, setIsSyncingOffline] = useState<boolean>(false);
+  const [resumedFromCache, setResumedFromCache] = useState<boolean>(false);
+
   // Dedicated independent timers to prevent cross-cancellation
   const botRollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const botMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -144,6 +166,88 @@ export const PlayLudoPage: React.FC<{
       clearAllTimers();
     };
   }, []);
+
+  // Attempt auto-recovery of in-progress match from offline cache on mount
+  useEffect(() => {
+    try {
+      const saved = loadActiveLudoSession();
+      if (saved && saved.gameState === 'playing' && saved.players && saved.players.length > 0) {
+        setGameMode(saved.gameMode || 'classic');
+        setPlayerCount(saved.playerCount || 4);
+        if (saved.targetLeagueId) setTargetLeagueId(saved.targetLeagueId);
+        if (saved.seatConfig) setSeatConfig(saved.seatConfig);
+        setPlayers(saved.players);
+        playersRef.current = saved.players;
+        setTurnColor(saved.turnColor);
+        turnColorRef.current = saved.turnColor;
+        setDiceValue(saved.diceValue);
+        diceValueRef.current = saved.diceValue;
+        setWaitingForMove(saved.waitingForMove);
+        waitingForMoveRef.current = saved.waitingForMove;
+        setGameLogs(saved.gameLogs || ['Match automatically resumed from cache.']);
+        setActiveTurnNotice(saved.activeTurnNotice || 'Match resumed from offline storage.');
+        setRankings(saved.rankings || []);
+        setGameState('playing');
+        gameStateRef.current = 'playing';
+        setResumedFromCache(true);
+      }
+    } catch (e) {
+      console.warn('Could not restore session:', e);
+    }
+
+    const handleNetworkChange = () => {
+      setIsOnline(isBrowserOnline());
+      setPendingOfflineCount(getPendingMatches().length);
+    };
+
+    window.addEventListener('online', handleNetworkChange);
+    window.addEventListener('offline', handleNetworkChange);
+
+    const unsubSync = initNetworkAutoSync(() => {
+      setPendingOfflineCount(getPendingMatches().length);
+      triggerDataRefresh();
+    });
+
+    return () => {
+      window.removeEventListener('online', handleNetworkChange);
+      window.removeEventListener('offline', handleNetworkChange);
+      unsubSync();
+    };
+  }, []);
+
+  // Continuous Offline Auto-Save on every single game state change
+  useEffect(() => {
+    if (gameState === 'playing' && players.length > 0) {
+      saveActiveLudoSession({
+        id: 'session_active',
+        gameMode,
+        playerCount,
+        targetLeagueId,
+        seatConfig,
+        players,
+        turnColor,
+        diceValue,
+        waitingForMove,
+        gameLogs,
+        activeTurnNotice,
+        rankings,
+        gameState
+      });
+    }
+  }, [
+    players,
+    turnColor,
+    diceValue,
+    waitingForMove,
+    gameLogs,
+    activeTurnNotice,
+    rankings,
+    gameState,
+    gameMode,
+    playerCount,
+    targetLeagueId,
+    seatConfig
+  ]);
 
   // Fetch registered roster players on mount
   useEffect(() => {
@@ -861,7 +965,7 @@ export const PlayLudoPage: React.FC<{
     }
   }, [turnColor, gameState, isRolling, waitingForMove, diceValue, players]);
 
-  // Direct Match Submission to League Master
+  // Direct Match Submission to League Master (with offline outbox fallback)
   const handleSaveToLeagueMaster = async () => {
     if (rankings.length === 0 || isSubmittingMatch) return;
 
@@ -888,25 +992,65 @@ export const PlayLudoPage: React.FC<{
         };
       });
 
-      const res = await apiRequest<{ friendlyId: string }>('/matches', {
-        method: 'POST',
-        body: JSON.stringify({
-          match_date: matchDate,
-          match_time: matchTime,
-          player_count: playerCount,
-          league_id: targetLeagueId,
-          notes: `Ludo Play Match (${gameMode === 'classic' ? 'Classic' : 'Quick'} Mode)`,
-          results
-        })
-      });
+      const matchPayload = {
+        match_date: matchDate,
+        match_time: matchTime,
+        player_count: playerCount,
+        league_id: targetLeagueId,
+        notes: `Ludo Play Match (${gameMode === 'classic' ? 'Classic' : 'Quick'} Mode)`,
+        results
+      };
 
-      setMatchSubmittedSuccess({ friendlyId: res.friendlyId });
-      triggerDataRefresh();
+      // If browser is currently offline, queue immediately into offline cache
+      if (!isBrowserOnline()) {
+        queuePendingMatch(matchPayload);
+        clearActiveLudoSession();
+        setPendingOfflineCount(getPendingMatches().length);
+        setMatchSubmittedSuccess({ friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)' });
+        return;
+      }
+
+      try {
+        const res = await apiRequest<{ friendlyId: string }>('/matches', {
+          method: 'POST',
+          body: JSON.stringify(matchPayload)
+        });
+
+        clearActiveLudoSession();
+        setMatchSubmittedSuccess({ friendlyId: res.friendlyId });
+        triggerDataRefresh();
+      } catch (networkErr: any) {
+        console.warn('Network issue during match save, storing offline locally:', networkErr);
+        // Fallback gracefully so the match result is NEVER lost
+        queuePendingMatch(matchPayload);
+        clearActiveLudoSession();
+        setPendingOfflineCount(getPendingMatches().length);
+        setMatchSubmittedSuccess({ friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)' });
+      }
     } catch (err: any) {
       console.error('Failed to submit Ludo match:', err);
       setSubmissionError(err.message || 'Failed to submit match to league.');
     } finally {
       setIsSubmittingMatch(false);
+    }
+  };
+
+  // Manual trigger to sync pending offline matches
+  const handleManualSyncOffline = async () => {
+    if (isSyncingOffline) return;
+    try {
+      setIsSyncingOffline(true);
+      const res = await syncPendingMatches(() => {
+        triggerDataRefresh();
+      });
+      setPendingOfflineCount(getPendingMatches().length);
+      if (res.synced > 0) {
+        logEvent(`☁️ Auto-synced ${res.synced} offline match(es) to League Master!`);
+      }
+    } catch (err) {
+      console.error('Error syncing offline matches:', err);
+    } finally {
+      setIsSyncingOffline(false);
     }
   };
 
@@ -935,13 +1079,45 @@ export const PlayLudoPage: React.FC<{
                 </span>
               </div>
               <p className="text-xs sm:text-sm font-bold text-amber-100 mt-0.5">
-                Play on the interactive board with authentic token physics & auto-sync directly into {targetLeague?.name || 'League Master'}.
+                Play on the interactive board with offline-proof auto-saving & sync directly into {targetLeague?.name || 'League Master'}.
               </p>
             </div>
           </div>
 
-          {/* Sound & Controls */}
-          <div className="flex items-center space-x-2">
+          {/* Sound & Controls & Offline Status */}
+          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+            {/* Offline / Online Real-Time Status Pill */}
+            {!isOnline ? (
+              <div
+                className="px-3 py-2 rounded-2xl bg-zinc-950/85 text-amber-300 border border-amber-400/40 shadow-md flex items-center gap-1.5 text-xs font-bold"
+                title="Internet connection is broken, but the game is 100% running locally and auto-saved!"
+              >
+                <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Offline Mode (Auto-Saved)</span>
+                <span className="sm:hidden">Offline Safe</span>
+              </div>
+            ) : pendingOfflineCount > 0 ? (
+              <button
+                id="btn-sync-offline-matches"
+                onClick={handleManualSyncOffline}
+                disabled={isSyncingOffline}
+                className="px-3 py-2 rounded-2xl bg-blue-950/90 hover:bg-blue-900 text-blue-300 border border-blue-400/50 shadow-md flex items-center gap-1.5 text-xs font-bold cursor-pointer transition-all"
+                title="Click to sync locally stored offline matches to the leaderboard"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isSyncingOffline ? 'animate-spin' : ''}`} />
+                <span>Sync ({pendingOfflineCount}) Offline</span>
+              </button>
+            ) : (
+              <div
+                className="px-3 py-2 rounded-2xl bg-zinc-950/70 text-emerald-300 border border-emerald-400/30 shadow-xs flex items-center gap-1.5 text-xs font-bold"
+                title="Connected to cloud with continuous local backup"
+              >
+                <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="hidden sm:inline">Offline-Protected</span>
+                <span className="sm:hidden">Protected</span>
+              </div>
+            )}
+
             <button
               id="btn-open-ludo-rules"
               onClick={() => setShowRulesModal(true)}
@@ -968,6 +1144,8 @@ export const PlayLudoPage: React.FC<{
                 id="btn-restart-game"
                 onClick={() => {
                   clearAllTimers();
+                  clearActiveLudoSession();
+                  setResumedFromCache(false);
                   setGameState('setup');
                 }}
                 className="px-3.5 py-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-white border border-white/20 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"

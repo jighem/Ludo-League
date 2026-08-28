@@ -5,6 +5,7 @@ import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { AddPlayerModal } from './AddPlayerModal';
 import { LudoRulesModal } from './ludo/LudoRulesModal';
+import { queuePendingMatch, isBrowserOnline } from '../utils/ludoOfflineSync';
 import {
   X,
   Plus,
@@ -16,7 +17,8 @@ import {
   RotateCcw,
   Crown,
   ShieldAlert,
-  BookOpen
+  BookOpen,
+  WifiOff
 } from 'lucide-react';
 
 interface NewMatchModalProps {
@@ -222,17 +224,14 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
       setError('');
       setDuplicateWarning(null);
 
-      const res = await apiRequest<{ friendlyId: string }>('/matches', {
-        method: 'POST',
-        body: JSON.stringify({
-          match_date: matchDate,
-          match_time: matchTime,
-          player_count: playerCount,
-          league_id: selectedLeagueId,
-          notes,
-          results
-        })
-      });
+      const matchPayload = {
+        match_date: matchDate,
+        match_time: matchTime,
+        player_count: playerCount,
+        league_id: selectedLeagueId,
+        notes,
+        results
+      };
 
       const currentLg = leagues.find((l) => l.id === selectedLeagueId);
       const breakdown = results.map((r) => {
@@ -247,18 +246,51 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
         };
       });
 
-      setSavedSuccess({
-        friendlyId: res.friendlyId,
-        leagueName: currentLg?.name || 'League',
-        breakdown
-      });
-
-      if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
-        setActiveLeagueId(selectedLeagueId);
+      if (!isBrowserOnline()) {
+        queuePendingMatch(matchPayload);
+        setSavedSuccess({
+          friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)',
+          leagueName: currentLg?.name || 'League',
+          breakdown
+        });
+        if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
+          setActiveLeagueId(selectedLeagueId);
+        }
+        onMatchSaved();
+        return;
       }
 
-      triggerDataRefresh();
-      onMatchSaved();
+      try {
+        const res = await apiRequest<{ friendlyId: string }>('/matches', {
+          method: 'POST',
+          body: JSON.stringify(matchPayload)
+        });
+
+        setSavedSuccess({
+          friendlyId: res.friendlyId,
+          leagueName: currentLg?.name || 'League',
+          breakdown
+        });
+
+        if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
+          setActiveLeagueId(selectedLeagueId);
+        }
+
+        triggerDataRefresh();
+        onMatchSaved();
+      } catch (networkErr: any) {
+        console.warn('Network error, queueing match offline:', networkErr);
+        queuePendingMatch(matchPayload);
+        setSavedSuccess({
+          friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)',
+          leagueName: currentLg?.name || 'League',
+          breakdown
+        });
+        if (selectedLeagueId && selectedLeagueId !== activeLeagueId) {
+          setActiveLeagueId(selectedLeagueId);
+        }
+        onMatchSaved();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save match.');
     } finally {

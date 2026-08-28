@@ -19,12 +19,25 @@ import { NewMatchModal } from './components/NewMatchModal';
 import { AddPlayerModal } from './components/AddPlayerModal';
 import { LoginModal } from './components/LoginModal';
 import { FirstAdminSetup } from './components/FirstAdminSetup';
+import { useLeague } from './context/LeagueContext';
+import { initNetworkAutoSync } from './utils/ludoOfflineSync';
 
 function MainApp() {
   const { needsSetup, loading, user } = useAuth();
   const { appName } = useSettings();
+  const { triggerDataRefresh } = useLeague();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+
+  // Auto-sync any pending offline matches whenever network is restored
+  useEffect(() => {
+    const unsub = initNetworkAutoSync(() => {
+      triggerDataRefresh();
+    });
+    return () => {
+      unsub();
+    };
+  }, [triggerDataRefresh]);
 
   // Modals
   const [isNewMatchOpen, setIsNewMatchOpen] = useState(false);

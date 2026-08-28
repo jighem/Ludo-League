@@ -38,7 +38,19 @@ export const SettingsPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<'admin' | 'operator'>('operator');
   const [password, setPassword] = useState('');
+  const [addLeagueMode, setAddLeagueMode] = useState<'all' | 'specific'>('all');
+  const [selectedAllowedLeagues, setSelectedAllowedLeagues] = useState<number[]>([]);
   const [creating, setCreating] = useState(false);
+
+  // Edit User Modal State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'admin' | 'operator' | 'viewer'>('operator');
+  const [editUserActive, setEditUserActive] = useState(true);
+  const [editUserLeagueMode, setEditUserLeagueMode] = useState<'all' | 'specific'>('all');
+  const [editUserAllowedLeagues, setEditUserAllowedLeagues] = useState<number[]>([]);
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [savingUserEdit, setSavingUserEdit] = useState(false);
 
   // League Settings
   const [minMatchesQual, setMinMatchesQual] = useState<number>(8);
@@ -123,26 +135,108 @@ export const SettingsPage: React.FC = () => {
       setError('Password must be at least 4 characters long.');
       return;
     }
+
+    if (role === 'operator' && addLeagueMode === 'specific' && selectedAllowedLeagues.length === 0) {
+      setError('Please select at least one league for this operator, or select "All Active Leagues".');
+      return;
+    }
+
     try {
       setCreating(true);
+      const allowed_leagues = role === 'admin' ? null : (addLeagueMode === 'all' ? null : selectedAllowedLeagues);
       const res = await apiRequest<{ message?: string; user?: any }>('/auth/users', {
         method: 'POST',
         body: JSON.stringify({
           name: name.trim(),
           username: username.trim().toLowerCase(),
           role,
-          password
+          password,
+          allowed_leagues
         })
       });
       setSuccessMsg(res.message || `User "${username.trim().toLowerCase()}" created successfully.`);
       setName('');
       setUsername('');
       setPassword('');
+      setAddLeagueMode('all');
+      setSelectedAllowedLeagues([]);
       fetchUsers();
     } catch (err: any) {
       setError(err.message || 'Failed to create user.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenEditUser = (u: User) => {
+    setEditingUser(u);
+    setEditUserName(u.name);
+    setEditUserRole(u.role);
+    setEditUserActive(u.is_active === 1);
+    setEditUserPassword('');
+
+    if (u.role === 'admin' || u.allowed_leagues === null || u.allowed_leagues === undefined) {
+      setEditUserLeagueMode('all');
+      setEditUserAllowedLeagues([]);
+    } else {
+      setEditUserLeagueMode('specific');
+      let parsed: number[] = [];
+      if (Array.isArray(u.allowed_leagues)) {
+        parsed = u.allowed_leagues.map(Number);
+      } else if (typeof u.allowed_leagues === 'string') {
+        try {
+          parsed = JSON.parse(u.allowed_leagues).map(Number);
+        } catch {
+          parsed = u.allowed_leagues.split(',').map(Number);
+        }
+      }
+      setEditUserAllowedLeagues(parsed);
+    }
+    setError('');
+    setSuccessMsg('');
+  };
+
+  const handleSaveUserEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setError('');
+    setSuccessMsg('');
+
+    if (!editUserName.trim()) {
+      setError('Full Name is required.');
+      return;
+    }
+
+    if (editUserRole === 'operator' && editUserLeagueMode === 'specific' && editUserAllowedLeagues.length === 0) {
+      setError('Please select at least one permitted league or choose "All Active Leagues".');
+      return;
+    }
+
+    try {
+      setSavingUserEdit(true);
+      const allowed_leagues = editUserRole === 'admin' ? null : (editUserLeagueMode === 'all' ? null : editUserAllowedLeagues);
+      const payload: any = {
+        name: editUserName.trim(),
+        role: editUserRole,
+        is_active: editUserActive ? 1 : 0,
+        allowed_leagues
+      };
+      if (editUserPassword.trim()) {
+        payload.password = editUserPassword.trim();
+      }
+
+      await apiRequest(`/auth/users/${editingUser.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      setSuccessMsg(`User "${editingUser.username}" updated successfully.`);
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user.');
+    } finally {
+      setSavingUserEdit(false);
     }
   };
 
@@ -660,6 +754,88 @@ export const SettingsPage: React.FC = () => {
               </select>
             </div>
 
+            {/* League Access Rights Configuration */}
+            {role === 'operator' ? (
+              <div className="p-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-extrabold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5 text-amber-500" /> Permitted Leagues
+                  </label>
+                  <span className="text-[10px] text-zinc-500 font-semibold">Access Rights</span>
+                </div>
+
+                <div className="flex items-center space-x-3 pt-1">
+                  <label className="flex items-center space-x-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="add_league_mode"
+                      checked={addLeagueMode === 'all'}
+                      onChange={() => setAddLeagueMode('all')}
+                      className="text-amber-500 focus:ring-amber-500 accent-amber-500"
+                    />
+                    <span className="font-bold text-zinc-700 dark:text-zinc-300">All Active Leagues</span>
+                  </label>
+                  <label className="flex items-center space-x-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="add_league_mode"
+                      checked={addLeagueMode === 'specific'}
+                      onChange={() => {
+                        setAddLeagueMode('specific');
+                        if (selectedAllowedLeagues.length === 0 && leagues.length > 0) {
+                          setSelectedAllowedLeagues([leagues[0].id]);
+                        }
+                      }}
+                      className="text-amber-500 focus:ring-amber-500 accent-amber-500"
+                    />
+                    <span className="font-bold text-zinc-700 dark:text-zinc-300">Specific Leagues</span>
+                  </label>
+                </div>
+
+                {addLeagueMode === 'specific' && (
+                  <div className="space-y-1.5 pt-1.5 border-t border-amber-500/15 max-h-36 overflow-y-auto">
+                    {leagues.map((lg) => {
+                      const isChecked = selectedAllowedLeagues.includes(lg.id);
+                      return (
+                        <label
+                          key={lg.id}
+                          className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                            isChecked
+                              ? 'bg-amber-500/10 border-amber-500/30 text-zinc-900 dark:text-zinc-100 font-bold'
+                              : 'bg-white/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAllowedLeagues([...selectedAllowedLeagues, lg.id]);
+                                } else {
+                                  setSelectedAllowedLeagues(selectedAllowedLeagues.filter((id) => id !== lg.id));
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 accent-amber-500"
+                            />
+                            <span>{lg.name}</span>
+                          </div>
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold">
+                            {lg.code}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 text-[11px] flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <span>Administrators hold unrestricted system access across all current and future leagues.</span>
+              </div>
+            )}
+
             <div>
               <label className="block font-bold text-zinc-700 dark:text-zinc-400 mb-1">Password *</label>
               <input
@@ -685,7 +861,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Existing Authorized Accounts Card */}
-        <div className="bg-white dark:bg-zinc-900/80 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl space-y-4">
+        <div className="bg-white dark:bg-zinc-900/80 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800/60">
             <div className="flex items-center space-x-2">
               <Key className="w-5 h-5 text-amber-500" />
@@ -710,74 +886,307 @@ export const SettingsPage: React.FC = () => {
                     <th className="py-2.5 px-3">Name</th>
                     <th className="py-2.5 px-3">Username</th>
                     <th className="py-2.5 px-3">Role</th>
+                    <th className="py-2.5 px-3">Permitted Leagues</th>
                     <th className="py-2.5 px-3">Status</th>
                     <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-700 dark:text-zinc-300">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/30">
-                      <td className="py-3 px-3 font-bold text-zinc-900 dark:text-zinc-100">
-                        {u.name}
-                        {currentUser?.id === u.id && (
-                          <span className="ml-1.5 text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
-                            You
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-amber-600 dark:text-amber-400">{u.username}</td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md uppercase ${
-                            u.role === 'admin'
-                              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                              : 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-                          }`}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
-                            u.is_active
-                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-red-500/15 text-red-600 dark:text-red-400'
-                          }`}
-                        >
-                          {u.is_active ? 'Active' : 'Disabled'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end space-x-1.5">
-                          {currentUser?.id !== u.id && (
-                            <>
-                              <button
-                                onClick={() => handleToggleUserStatus(u)}
-                                className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-                                title={u.is_active ? 'Deactivate User' : 'Activate User'}
-                              >
-                                {u.is_active ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(u)}
-                                className="p-1 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-500 cursor-pointer"
-                                title="Remove User"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
+                  {users.map((u) => {
+                    let parsedAllowed: number[] | 'all' = 'all';
+                    if (u.role === 'admin') {
+                      parsedAllowed = 'all';
+                    } else if (u.allowed_leagues === null || u.allowed_leagues === undefined) {
+                      parsedAllowed = 'all';
+                    } else if (Array.isArray(u.allowed_leagues)) {
+                      parsedAllowed = u.allowed_leagues.map(Number);
+                    } else if (typeof u.allowed_leagues === 'string') {
+                      try {
+                        parsedAllowed = JSON.parse(u.allowed_leagues).map(Number);
+                      } catch {
+                        parsedAllowed = u.allowed_leagues.split(',').map(Number);
+                      }
+                    }
+
+                    return (
+                      <tr key={u.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/30">
+                        <td className="py-3 px-3 font-bold text-zinc-900 dark:text-zinc-100">
+                          {u.name}
+                          {currentUser?.id === u.id && (
+                            <span className="ml-1.5 text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
+                              You
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-amber-600 dark:text-amber-400">{u.username}</td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md uppercase ${
+                              u.role === 'admin'
+                                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                                : 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                            }`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {parsedAllowed === 'all' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                              <Crown className="w-3 h-3 text-amber-500" /> All Leagues
+                            </span>
+                          ) : parsedAllowed.length === 0 ? (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-red-500/15 text-red-600 dark:text-red-400">
+                              No Leagues Assigned
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {parsedAllowed.map((lid) => {
+                                const matchedLg = leagues.find((l) => l.id === lid);
+                                return (
+                                  <span
+                                    key={lid}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                                    title={matchedLg ? `${matchedLg.name} (${matchedLg.code})` : `League #${lid}`}
+                                  >
+                                    {matchedLg ? matchedLg.name : `#${lid}`}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
+                              u.is_active
+                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                            }`}
+                          >
+                            {u.is_active ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end space-x-1.5">
+                            <button
+                              onClick={() => handleOpenEditUser(u)}
+                              className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-amber-500 cursor-pointer"
+                              title="Edit User & Permissions"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            {currentUser?.id !== u.id && (
+                              <>
+                                <button
+                                  onClick={() => handleToggleUserStatus(u)}
+                                  className="p-1 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                                  title={u.is_active ? 'Deactivate User' : 'Activate User'}
+                                >
+                                  {u.is_active ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5 text-emerald-500" />}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(u)}
+                                  className="p-1 rounded-lg hover:bg-red-500/20 text-zinc-400 hover:text-red-500 cursor-pointer"
+                                  title="Remove User"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center space-x-2">
+                <Edit2 className="w-5 h-5 text-amber-500" />
+                <h3 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100">
+                  Edit User & League Rights
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingUser(null)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-100 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserEdit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-zinc-700 dark:text-zinc-300 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={editingUser.username}
+                  disabled
+                  className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-500 dark:text-zinc-400 font-mono font-bold cursor-not-allowed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-zinc-700 dark:text-zinc-300 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  value={editUserName}
+                  onChange={(e) => setEditUserName(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-zinc-700 dark:text-zinc-300 mb-1">System Role *</label>
+                <select
+                  value={editUserRole}
+                  onChange={(e) => setEditUserRole(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="operator">Operator (Can record matches in assigned leagues)</option>
+                  <option value="admin">Administrator (Unrestricted control)</option>
+                </select>
+              </div>
+
+              {/* League rights configuration */}
+              {editUserRole === 'operator' ? (
+                <div className="p-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-extrabold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                      <Crown className="w-3.5 h-3.5 text-amber-500" /> Permitted Leagues
+                    </label>
+                    <span className="text-[10px] text-zinc-500 font-semibold">Rights Assignment</span>
+                  </div>
+
+                  <div className="flex items-center space-x-3 pt-1">
+                    <label className="flex items-center space-x-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="edit_league_mode"
+                        checked={editUserLeagueMode === 'all'}
+                        onChange={() => setEditUserLeagueMode('all')}
+                        className="text-amber-500 focus:ring-amber-500 accent-amber-500"
+                      />
+                      <span className="font-bold text-zinc-700 dark:text-zinc-300">All Active Leagues</span>
+                    </label>
+                    <label className="flex items-center space-x-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="edit_league_mode"
+                        checked={editUserLeagueMode === 'specific'}
+                        onChange={() => {
+                          setEditUserLeagueMode('specific');
+                          if (editUserAllowedLeagues.length === 0 && leagues.length > 0) {
+                            setEditUserAllowedLeagues([leagues[0].id]);
+                          }
+                        }}
+                        className="text-amber-500 focus:ring-amber-500 accent-amber-500"
+                      />
+                      <span className="font-bold text-zinc-700 dark:text-zinc-300">Specific Leagues</span>
+                    </label>
+                  </div>
+
+                  {editUserLeagueMode === 'specific' && (
+                    <div className="space-y-1.5 pt-1.5 border-t border-amber-500/15 max-h-40 overflow-y-auto">
+                      {leagues.map((lg) => {
+                        const isChecked = editUserAllowedLeagues.includes(lg.id);
+                        return (
+                          <label
+                            key={lg.id}
+                            className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                              isChecked
+                                ? 'bg-amber-500/10 border-amber-500/30 text-zinc-900 dark:text-zinc-100 font-bold'
+                                : 'bg-white/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditUserAllowedLeagues([...editUserAllowedLeagues, lg.id]);
+                                  } else {
+                                    setEditUserAllowedLeagues(editUserAllowedLeagues.filter((id) => id !== lg.id));
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 accent-amber-500"
+                              />
+                              <span>{lg.name}</span>
+                            </div>
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold">
+                              {lg.code}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-700 dark:text-amber-400 text-[11px] flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 shrink-0" />
+                  <span>Administrators hold unrestricted system access across all current and future leagues.</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Reset Password <span className="text-zinc-400 font-normal">(leave blank to keep unchanged)</span>
+                </label>
+                <input
+                  type="password"
+                  value={editUserPassword}
+                  onChange={(e) => setEditUserPassword(e.target.value)}
+                  placeholder="New password (optional)..."
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editUserActive}
+                    onChange={(e) => setEditUserActive(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 accent-amber-500"
+                  />
+                  <span className="font-bold text-zinc-700 dark:text-zinc-300">Account is Active & Enabled</span>
+                </label>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="w-1/2 py-2 px-3 rounded-xl bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingUserEdit}
+                  className="w-1/2 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50 transition-colors shadow-md"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{savingUserEdit ? 'Saving...' : 'Save User Changes'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

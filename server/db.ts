@@ -104,6 +104,16 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE championship_snapshots ADD COLUMN league_id INT NOT NULL DEFAULT 1 AFTER id;`);
         }
 
+        // Check if allowed_leagues column exists on users table
+        const [userCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'allowed_leagues';
+        `);
+        if (userCols.length === 0) {
+          console.log('Adding allowed_leagues column to MySQL users table...');
+          await mysqlPool.query(`ALTER TABLE users ADD COLUMN allowed_leagues TEXT NULL AFTER role;`);
+        }
+
         // Ensure default AC Ludo League 1 exists
         await mysqlPool.query(`
           INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
@@ -152,6 +162,7 @@ function initEmbeddedSchema() {
       email TEXT UNIQUE,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'viewer',
+      allowed_leagues TEXT DEFAULT NULL,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -277,6 +288,16 @@ function initEmbeddedSchema() {
     const colsSnap = tableInfoSnap[0]?.values?.map((v: any) => v[1]) || [];
     if (!colsSnap.includes('league_id')) {
       sqlJsDb.exec('ALTER TABLE championship_snapshots ADD COLUMN league_id INTEGER NOT NULL DEFAULT 1;');
+    }
+  } catch (err) {
+    // Already exists or fresh db
+  }
+
+  try {
+    const tableInfoUser = sqlJsDb.exec("PRAGMA table_info('users');");
+    const colsUser = tableInfoUser[0]?.values?.map((v: any) => v[1]) || [];
+    if (!colsUser.includes('allowed_leagues')) {
+      sqlJsDb.exec('ALTER TABLE users ADD COLUMN allowed_leagues TEXT DEFAULT NULL;');
     }
   } catch (err) {
     // Already exists or fresh db

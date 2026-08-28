@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, transaction } from '../db';
-import { authenticateToken, optionalAuthenticateToken, requireRole, logAudit, AuthenticatedRequest } from '../auth';
+import { authenticateToken, optionalAuthenticateToken, requireRole, logAudit, AuthenticatedRequest, isUserPermittedForLeague } from '../auth';
 
 const router = Router();
 
@@ -98,6 +98,19 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
     }
 
     const targetLeagueId = Number(league_id) || 1;
+
+    // Check league permissions for non-admin operators
+    if (req.user?.role !== 'admin') {
+      const userRows = await query<any>('SELECT role, allowed_leagues FROM users WHERE id = ?', [req.user?.id]);
+      if (userRows.length > 0) {
+        const u = userRows[0];
+        if (!isUserPermittedForLeague(u, targetLeagueId)) {
+          return res.status(403).json({
+            error: `Permission denied: You do not have recording permissions for League #${targetLeagueId}. Please contact an administrator.`
+          });
+        }
+      }
+    }
 
     // Check unique players and unique ranks
     const playerIds = new Set<number>();
@@ -329,6 +342,21 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       return res.status(400).json({ error: `Exactly ${pCount} player results must be provided` });
     }
 
+    const targetLeagueId = league_id && !isNaN(Number(league_id)) ? Number(league_id) : currentMatch.league_id;
+
+    // Check league permissions for non-admin operators
+    if (!isAdmin) {
+      const userRows = await query<any>('SELECT role, allowed_leagues FROM users WHERE id = ?', [req.user?.id]);
+      if (userRows.length > 0) {
+        const u = userRows[0];
+        if (!isUserPermittedForLeague(u, currentMatch.league_id) || !isUserPermittedForLeague(u, targetLeagueId)) {
+          return res.status(403).json({
+            error: 'Permission denied: You do not have operator permissions for this league.'
+          });
+        }
+      }
+    }
+
     // Check unique players and unique ranks
     const playerIds = new Set<number>();
     const positions = new Set<number>();
@@ -348,7 +376,6 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
     }
 
     const pointsMap = await getScoringRules(pCount);
-    const targetLeagueId = league_id && !isNaN(Number(league_id)) ? Number(league_id) : currentMatch.league_id;
 
     await transaction(async (tx) => {
       // Update match record

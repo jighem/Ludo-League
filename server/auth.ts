@@ -11,6 +11,7 @@ export interface AuthUser {
   username: string;
   email: string | null;
   role: 'admin' | 'operator' | 'viewer';
+  allowed_leagues?: number[] | string | null;
   is_active: number;
 }
 
@@ -27,6 +28,30 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
+export function parseAllowedLeagues(allowed: any): number[] | null {
+  if (allowed == null) return null;
+  if (Array.isArray(allowed)) return allowed.map(Number).filter((n) => !isNaN(n));
+  if (typeof allowed === 'string') {
+    const trimmed = allowed.trim();
+    if (!trimmed || trimmed === 'all' || trimmed === '*' || trimmed === '["*"]') return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map(Number).filter((n) => !isNaN(n));
+    } catch (e) {
+      return trimmed.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n));
+    }
+  }
+  return null;
+}
+
+export function isUserPermittedForLeague(user: AuthUser | null | undefined, leagueId: number): boolean {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const allowed = parseAllowedLeagues(user.allowed_leagues);
+  if (allowed === null) return true; // Unrestricted operator
+  return allowed.includes(Number(leagueId));
+}
+
 export function generateToken(user: AuthUser): string {
   return jwt.sign(
     {
@@ -34,7 +59,8 @@ export function generateToken(user: AuthUser): string {
       name: user.name,
       username: user.username,
       email: user.email,
-      role: user.role
+      role: user.role,
+      allowed_leagues: parseAllowedLeagues(user.allowed_leagues)
     },
     JWT_SECRET,
     { expiresIn: '7d' }
@@ -96,17 +122,18 @@ export function requireRole(allowedRoles: Array<'admin' | 'operator' | 'viewer'>
 }
 
 export async function logAudit(
-  req: AuthenticatedRequest,
-  action: string,
-  entity: string,
+  req?: Partial<AuthenticatedRequest> | null,
+  action: string = 'UNKNOWN',
+  entity: string = 'UNKNOWN',
   entityId?: string | number,
   details?: any
 ) {
   try {
-    const userId = req.user?.id || null;
-    const username = req.user?.username || 'system';
-    const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || null;
-    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : (details || null);
+    const userId = req?.user?.id || null;
+    const username = req?.user?.username || 'system';
+    const forwardedHeader = req?.headers?.['x-forwarded-for'];
+    const ipAddress = (Array.isArray(forwardedHeader) ? forwardedHeader[0] : forwardedHeader) || req?.socket?.remoteAddress || req?.ip || null;
+    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : (details ? String(details) : null);
 
     await execute(
       `INSERT INTO audit_logs (user_id, username, action, entity, entity_id, details, ip_address, created_at)

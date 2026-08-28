@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Player, ScoringRule } from '../types';
 import { apiRequest } from '../api/client';
 import { useLeague } from '../context/LeagueContext';
+import { useAuth } from '../context/AuthContext';
 import { AddPlayerModal } from './AddPlayerModal';
 import {
   X,
@@ -12,7 +13,8 @@ import {
   Calendar,
   Clock,
   RotateCcw,
-  Crown
+  Crown,
+  ShieldAlert
 } from 'lucide-react';
 
 interface NewMatchModalProps {
@@ -22,7 +24,31 @@ interface NewMatchModalProps {
 }
 
 export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, onMatchSaved }) => {
+  const { user } = useAuth();
   const { leagues, activeLeagueId, setActiveLeagueId, triggerDataRefresh } = useLeague();
+  
+  // Determine available leagues for current user
+  const availableLeagues = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') {
+      return leagues.filter((l) => l.is_active === 1);
+    }
+    if (user.allowed_leagues === null || user.allowed_leagues === undefined) {
+      return leagues.filter((l) => l.is_active === 1);
+    }
+    let allowedIds: number[] = [];
+    if (Array.isArray(user.allowed_leagues)) {
+      allowedIds = user.allowed_leagues.map(Number);
+    } else if (typeof user.allowed_leagues === 'string') {
+      try {
+        allowedIds = JSON.parse(user.allowed_leagues).map(Number);
+      } catch {
+        allowedIds = user.allowed_leagues.split(',').map(Number);
+      }
+    }
+    return leagues.filter((l) => l.is_active === 1 && allowedIds.includes(l.id));
+  }, [user, leagues]);
+
   const [selectedLeagueId, setSelectedLeagueId] = useState<number>(activeLeagueId || 1);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scoringRules, setScoringRules] = useState<Record<number, Record<number, number>>>({
@@ -57,11 +83,17 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedLeagueId(activeLeagueId || 1);
+      // Pick activeLeagueId if permitted, otherwise first permitted league
+      const isPermitted = availableLeagues.some((l) => l.id === activeLeagueId);
+      if (isPermitted) {
+        setSelectedLeagueId(activeLeagueId || availableLeagues[0]?.id || 1);
+      } else if (availableLeagues.length > 0) {
+        setSelectedLeagueId(availableLeagues[0].id);
+      }
       fetchInitialData();
       resetForm();
     }
-  }, [isOpen, activeLeagueId]);
+  }, [isOpen, activeLeagueId, availableLeagues]);
 
   const fetchInitialData = async () => {
     try {
@@ -328,21 +360,36 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
 
               {/* League Selector in Match Modal */}
               <div className="p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20">
-                <label className="block text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5" /> Target Ludo League
-                </label>
-                <select
-                  id="select-match-league"
-                  value={selectedLeagueId}
-                  onChange={(e) => setSelectedLeagueId(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-500/30 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
-                >
-                  {leagues.map((lg) => (
-                    <option key={lg.id} value={lg.id}>
-                      {lg.name} ({lg.code}) {lg.is_default === 1 ? '— Default League' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5" /> Target Ludo League
+                  </label>
+                  {user?.role === 'operator' && (
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold">
+                      {availableLeagues.length} permitted league{availableLeagues.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
+                {availableLeagues.length === 0 ? (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>You do not have recording rights for any active league. Contact an administrator to assign league permissions.</span>
+                  </div>
+                ) : (
+                  <select
+                    id="select-match-league"
+                    value={selectedLeagueId}
+                    onChange={(e) => setSelectedLeagueId(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-500/30 rounded-xl text-xs font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                  >
+                    {availableLeagues.map((lg) => (
+                      <option key={lg.id} value={lg.id}>
+                        {lg.name} ({lg.code}) {lg.is_default === 1 ? '— Default League' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Match Controls Row */}
@@ -500,7 +547,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
                   <button
                     id="btn-save-match-submit"
                     onClick={() => handleCheckAndSubmit(false)}
-                    disabled={submitting}
+                    disabled={submitting || availableLeagues.length === 0}
                     className="px-5 py-2 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 rounded-xl shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {submitting ? 'Saving Match...' : 'Save Match'}

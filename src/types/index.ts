@@ -4,8 +4,10 @@ export interface User {
   username: string;
   email: string | null;
   role: 'admin' | 'operator' | 'viewer';
+  allowed_leagues?: number[] | string | null;
   is_active: number;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface League {

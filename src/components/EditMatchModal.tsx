@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Match, Player, ScoringRule } from '../types';
 import { apiRequest } from '../api/client';
 import { useLeague } from '../context/LeagueContext';
@@ -14,7 +14,8 @@ import {
   Crown,
   Edit2,
   Lock,
-  Save
+  Save,
+  ShieldAlert
 } from 'lucide-react';
 
 interface EditMatchModalProps {
@@ -32,6 +33,54 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { leagues, triggerDataRefresh } = useLeague();
+
+  // Determine available leagues for current user
+  const availableLeagues = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'admin') {
+      return leagues.filter((l) => l.is_active === 1 || (match && l.id === match.league_id));
+    }
+    if (user.allowed_leagues === null || user.allowed_leagues === undefined) {
+      return leagues.filter((l) => l.is_active === 1 || (match && l.id === match.league_id));
+    }
+    let allowedIds: number[] = [];
+    if (Array.isArray(user.allowed_leagues)) {
+      allowedIds = user.allowed_leagues.map(Number);
+    } else if (typeof user.allowed_leagues === 'string') {
+      try {
+        allowedIds = JSON.parse(user.allowed_leagues).map(Number);
+      } catch {
+        allowedIds = user.allowed_leagues.split(',').map(Number);
+      }
+    }
+    return leagues.filter((l) => (l.is_active === 1 || (match && l.id === match.league_id)) && allowedIds.includes(l.id));
+  }, [user, leagues, match]);
+
+  const isUserAllowedForMatch = useMemo(() => {
+    if (!user || !match) return false;
+    if (user.role === 'admin') return true;
+    if (user.role === 'operator') {
+      if (match.created_by != null && Number(match.created_by) !== Number(user.id)) {
+        return false;
+      }
+      if (user.allowed_leagues === null || user.allowed_leagues === undefined) {
+        return true;
+      }
+      let allowedIds: number[] = [];
+      if (Array.isArray(user.allowed_leagues)) {
+        allowedIds = user.allowed_leagues.map(Number);
+      } else if (typeof user.allowed_leagues === 'string') {
+        try {
+          allowedIds = JSON.parse(user.allowed_leagues).map(Number);
+        } catch {
+          allowedIds = user.allowed_leagues.split(',').map(Number);
+        }
+      }
+      return allowedIds.includes(Number(match.league_id));
+    }
+    return false;
+  }, [user, match]);
+
   const [selectedLeagueId, setSelectedLeagueId] = useState<number>(1);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scoringRules, setScoringRules] = useState<Record<number, Record<number, number>>>({
@@ -280,26 +329,43 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
                 </div>
               )}
 
-              {/* Ownership confirmation banner */}
-              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center justify-between">
-                <span>
-                  {isAdmin
-                    ? '🛡️ Administrator Mode: You have full authority to modify this match.'
-                    : '✅ Verified: You are the original recorder of this match.'}
-                </span>
-              </div>
+              {/* Ownership & League Rights confirmation banner */}
+              {!isUserAllowedForMatch ? (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>
+                    Permission denied: You cannot edit this match because you either did not record it or do not have permissions for this league.
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center justify-between">
+                  <span>
+                    {isAdmin
+                      ? '🛡️ Administrator Mode: You have full authority to modify this match.'
+                      : '✅ Verified: You recorded this entry and hold rights for this league.'}
+                  </span>
+                </div>
+              )}
 
               {/* League Selector */}
               <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800">
-                <label className="block text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5" /> Target Ludo League
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5" /> Target Ludo League
+                  </label>
+                  {user?.role === 'operator' && (
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold">
+                      {availableLeagues.length} permitted league{availableLeagues.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedLeagueId}
                   onChange={(e) => setSelectedLeagueId(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                  disabled={!isUserAllowedForMatch}
+                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-white focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
                 >
-                  {leagues.map((lg) => (
+                  {availableLeagues.map((lg) => (
                     <option key={lg.id} value={lg.id}>
                       {lg.name} ({lg.code}) {lg.is_default === 1 ? '— Default League' : ''}
                     </option>
@@ -457,7 +523,7 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !isUserAllowedForMatch}
                   className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />

@@ -69,7 +69,20 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
     if (!user) return false;
     if (user.role === 'admin') return true;
     if (user.role === 'operator' && m.created_by != null && Number(m.created_by) === Number(user.id)) {
-      return true;
+      if (user.allowed_leagues === null || user.allowed_leagues === undefined) {
+        return true;
+      }
+      let allowedIds: number[] = [];
+      if (Array.isArray(user.allowed_leagues)) {
+        allowedIds = user.allowed_leagues.map(Number);
+      } else if (typeof user.allowed_leagues === 'string') {
+        try {
+          allowedIds = JSON.parse(user.allowed_leagues).map(Number);
+        } catch {
+          allowedIds = user.allowed_leagues.split(',').map(Number);
+        }
+      }
+      return allowedIds.includes(Number(m.league_id));
     }
     return false;
   };

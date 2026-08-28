@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, execute } from '../db';
-import { hashPassword, comparePassword, generateToken, authenticateToken, logAudit, AuthenticatedRequest } from '../auth';
+import { hashPassword, comparePassword, generateToken, authenticateToken, logAudit, AuthenticatedRequest, parseAllowedLeagues } from '../auth';
 
 const router = Router();
 
@@ -97,6 +97,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      allowed_leagues: parseAllowedLeagues(user.allowed_leagues),
       is_active: user.is_active
     };
 
@@ -108,7 +109,8 @@ router.post('/login', async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    await logAudit({ user: authUser } as AuthenticatedRequest, 'LOGIN', 'users', user.id);
+    (req as AuthenticatedRequest).user = authUser;
+    await logAudit(req as AuthenticatedRequest, 'LOGIN', 'users', user.id);
 
     return res.json({
       message: 'Logged in successfully',
@@ -130,9 +132,11 @@ router.post('/logout', (req, res) => {
 router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
-    const users = await query<any>('SELECT id, name, username, email, role, is_active, created_at FROM users WHERE id = ?', [req.user.id]);
+    const users = await query<any>('SELECT id, name, username, email, role, allowed_leagues, is_active, created_at FROM users WHERE id = ?', [req.user.id]);
     if (users.length === 0) return res.status(404).json({ error: 'User not found' });
-    return res.json({ user: users[0] });
+    const u = users[0];
+    u.allowed_leagues = parseAllowedLeagues(u.allowed_leagues);
+    return res.json({ user: u });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -145,8 +149,11 @@ router.get('/users', authenticateToken, async (req: AuthenticatedRequest, res) =
       return res.status(403).json({ error: 'Admin role required' });
     }
     const users = await query<any>(
-      'SELECT id, name, username, email, role, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
+      'SELECT id, name, username, email, role, allowed_leagues, is_active, created_at, updated_at FROM users ORDER BY created_at DESC'
     );
+    users.forEach((u: any) => {
+      u.allowed_leagues = parseAllowedLeagues(u.allowed_leagues);
+    });
     return res.json({ users });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -159,7 +166,7 @@ const handleCreateUser = async (req: AuthenticatedRequest, res: any) => {
     if (req.user?.role !== 'admin') {
       return res.status(403).json({ error: 'Admin role required to create users' });
     }
-    const { name, username, email, password, role } = req.body;
+    const { name, username, email, password, role, allowed_leagues } = req.body;
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'Name, username, and password are required' });
     }
@@ -176,14 +183,34 @@ const handleCreateUser = async (req: AuthenticatedRequest, res: any) => {
       return res.status(400).json({ error: `Username "${trimmedUsername}" is already taken` });
     }
 
+    let formattedAllowedLeagues: string | null = null;
+    if (userRole === 'admin') {
+      formattedAllowedLeagues = null; // Admins have full access
+    } else if (allowed_leagues !== undefined && allowed_leagues !== null) {
+      if (Array.isArray(allowed_leagues)) {
+        formattedAllowedLeagues = JSON.stringify(allowed_leagues.map(Number).filter((n) => !isNaN(n)));
+      } else if (typeof allowed_leagues === 'string' && allowed_leagues.trim()) {
+        try {
+          const parsed = JSON.parse(allowed_leagues);
+          formattedAllowedLeagues = Array.isArray(parsed) ? JSON.stringify(parsed.map(Number)) : null;
+        } catch {
+          formattedAllowedLeagues = JSON.stringify(allowed_leagues.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n)));
+        }
+      }
+    }
+
     const passwordHash = await hashPassword(password);
     const result = await execute(
-      `INSERT INTO users (name, username, email, password_hash, role, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [name.trim(), trimmedUsername, email?.trim() || null, passwordHash, userRole]
+      `INSERT INTO users (name, username, email, password_hash, role, allowed_leagues, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [name.trim(), trimmedUsername, email?.trim() || null, passwordHash, userRole, formattedAllowedLeagues]
     );
 
-    await logAudit(req, 'CREATE_USER', 'users', result.insertId, { username: trimmedUsername, role: userRole });
+    await logAudit(req, 'CREATE_USER', 'users', result.insertId, {
+      username: trimmedUsername,
+      role: userRole,
+      allowed_leagues: formattedAllowedLeagues
+    });
 
     const newUser = {
       id: result.insertId,
@@ -191,6 +218,7 @@ const handleCreateUser = async (req: AuthenticatedRequest, res: any) => {
       username: trimmedUsername,
       email: email?.trim() || null,
       role: userRole,
+      allowed_leagues: parseAllowedLeagues(formattedAllowedLeagues),
       is_active: 1
     };
 
@@ -207,7 +235,7 @@ const handleCreateUser = async (req: AuthenticatedRequest, res: any) => {
 router.post('/users', authenticateToken, handleCreateUser);
 router.post('/register', authenticateToken, handleCreateUser);
 
-// Update system user details / role / status (Admin required)
+// Update system user details / role / status / allowed leagues (Admin required)
 router.put('/users/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     if (req.user?.role !== 'admin') {
@@ -215,7 +243,7 @@ router.put('/users/:id', authenticateToken, async (req: AuthenticatedRequest, re
     }
 
     const userId = Number(req.params.id);
-    const { name, role, is_active, password } = req.body;
+    const { name, role, is_active, password, allowed_leagues } = req.body;
 
     const existingUsers = await query<any>('SELECT * FROM users WHERE id = ?', [userId]);
     if (existingUsers.length === 0) {
@@ -236,23 +264,45 @@ router.put('/users/:id', authenticateToken, async (req: AuthenticatedRequest, re
     const updatedRole = role && ['admin', 'operator', 'viewer'].includes(role) ? role : user.role;
     const updatedActive = is_active !== undefined ? (is_active ? 1 : 0) : user.is_active;
 
+    let updatedAllowedLeagues: string | null = user.allowed_leagues;
+    if (updatedRole === 'admin') {
+      updatedAllowedLeagues = null;
+    } else if (allowed_leagues !== undefined) {
+      if (allowed_leagues === null) {
+        updatedAllowedLeagues = null;
+      } else if (Array.isArray(allowed_leagues)) {
+        updatedAllowedLeagues = JSON.stringify(allowed_leagues.map(Number).filter((n) => !isNaN(n)));
+      } else if (typeof allowed_leagues === 'string') {
+        try {
+          const parsed = JSON.parse(allowed_leagues);
+          updatedAllowedLeagues = Array.isArray(parsed) ? JSON.stringify(parsed.map(Number)) : null;
+        } catch {
+          updatedAllowedLeagues = JSON.stringify(allowed_leagues.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n)));
+        }
+      }
+    }
+
     if (password && password.trim()) {
       if (password.length < 4) {
         return res.status(400).json({ error: 'Password must be at least 4 characters' });
       }
       const newHash = await hashPassword(password);
       await execute(
-        'UPDATE users SET name = ?, role = ?, is_active = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [updatedName, updatedRole, updatedActive, newHash, userId]
+        'UPDATE users SET name = ?, role = ?, allowed_leagues = ?, is_active = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [updatedName, updatedRole, updatedAllowedLeagues, updatedActive, newHash, userId]
       );
     } else {
       await execute(
-        'UPDATE users SET name = ?, role = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [updatedName, updatedRole, updatedActive, userId]
+        'UPDATE users SET name = ?, role = ?, allowed_leagues = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [updatedName, updatedRole, updatedAllowedLeagues, updatedActive, userId]
       );
     }
 
-    await logAudit(req, 'UPDATE_USER', 'users', userId, { role: updatedRole, is_active: updatedActive });
+    await logAudit(req, 'UPDATE_USER', 'users', userId, {
+      role: updatedRole,
+      is_active: updatedActive,
+      allowed_leagues: updatedAllowedLeagues
+    });
 
     return res.json({ message: 'User updated successfully' });
   } catch (err: any) {

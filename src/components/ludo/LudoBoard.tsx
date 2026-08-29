@@ -184,10 +184,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.red.count}/4</span>
           </div>
-
-          <span className="absolute bottom-1 right-2 text-[9px] font-black text-red-950/70 uppercase tracking-widest pointer-events-none z-10">
-            RED
-          </span>
         </div>
 
         {/* ========================================================================= */}
@@ -248,10 +244,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.green.count}/4</span>
           </div>
-
-          <span className="absolute bottom-1 left-2 text-[9px] font-black text-emerald-950/70 uppercase tracking-widest pointer-events-none z-10">
-            GREEN
-          </span>
         </div>
 
         {/* ========================================================================= */}
@@ -394,10 +386,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.blue.count}/4</span>
           </div>
-
-          <span className="absolute top-1 right-2 text-[9px] font-black text-blue-950/70 uppercase tracking-widest pointer-events-none z-10">
-            BLUE
-          </span>
         </div>
 
         {/* ========================================================================= */}
@@ -458,10 +446,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.yellow.count}/4</span>
           </div>
-
-          <span className="absolute top-1 left-2 text-[9px] font-black text-amber-950/70 uppercase tracking-widest pointer-events-none z-10">
-            YELLOW
-          </span>
         </div>
 
         {/* ========================================================================= */}

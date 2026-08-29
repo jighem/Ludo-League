@@ -10,6 +10,7 @@ interface LudoDiceProps {
   playerName?: string;
   onRoll: () => void;
   isBot?: boolean;
+  hideSubtext?: boolean;
 }
 
 export const LudoDice: React.FC<LudoDiceProps> = ({
@@ -20,6 +21,7 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
   playerName,
   onRoll,
   isBot = false,
+  hideSubtext = false,
 }) => {
   const [displayedValue, setDisplayedValue] = useState<number>(value || 1);
   const colorCfg = COLOR_CONFIG[color];
@@ -183,30 +185,34 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         )}
       </button>
 
-      {canRoll && !isBot && (
-        <div className="mt-2 text-center">
-          <span
-            className="text-xs sm:text-sm font-black uppercase tracking-wider animate-pulse drop-shadow-sm flex items-center justify-center gap-1"
-            style={{ color: visuals.glowHex }}
-          >
-            <span>{activeName}</span>
-            <span className="text-zinc-600 dark:text-zinc-400 font-bold">to roll</span>
-          </span>
-        </div>
-      )}
-      {isBot && canRoll && (
-        <div className="mt-2 text-center">
-          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-            {activeName} (Bot) Rolling...
-          </span>
-        </div>
-      )}
-      {!canRoll && !isRolling && value && (
-        <div className="mt-2 text-center">
-          <span className="text-xs font-bold text-zinc-400">
-            {activeName} rolled {value}
-          </span>
-        </div>
+      {!hideSubtext && (
+        <>
+          {canRoll && !isBot && (
+            <div className="mt-2 text-center">
+              <span
+                className="text-xs sm:text-sm font-black uppercase tracking-wider animate-pulse drop-shadow-sm flex items-center justify-center gap-1"
+                style={{ color: visuals.glowHex }}
+              >
+                <span>{activeName}</span>
+                <span className="text-zinc-600 dark:text-zinc-400 font-bold">to roll</span>
+              </span>
+            </div>
+          )}
+          {isBot && canRoll && (
+            <div className="mt-2 text-center">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                {activeName} (Bot) Rolling...
+              </span>
+            </div>
+          )}
+          {!canRoll && !isRolling && value && (
+            <div className="mt-2 text-center">
+              <span className="text-xs font-bold text-zinc-400">
+                {activeName} rolled {value}
+              </span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

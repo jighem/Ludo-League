@@ -14,6 +14,8 @@ import { ludoAudio } from '../utils/ludoAudio';
 import { LudoBoard } from '../components/ludo/LudoBoard';
 import { LudoDice } from '../components/ludo/LudoDice';
 import { LudoRulesModal } from '../components/ludo/LudoRulesModal';
+import { DiceFairnessModal } from '../components/ludo/DiceFairnessModal';
+import { rollFairDice } from '../utils/diceEngine';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { Player, ScoringRule } from '../types';
@@ -116,6 +118,7 @@ export const PlayLudoPage: React.FC<{
   const [submissionError, setSubmissionError] = useState<string>('');
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
   const [showOnPageRules, setShowOnPageRules] = useState<boolean>(true);
+  const [showDiceDiagnostics, setShowDiceDiagnostics] = useState<boolean>(false);
 
   // Offline & Auto-Recovery State
   const [isOnline, setIsOnline] = useState<boolean>(() => isBrowserOnline());
@@ -127,6 +130,9 @@ export const PlayLudoPage: React.FC<{
   const botRollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const botMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const turnTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Single-roll atomic result storage (separates Dice Engine from Rules Engine)
+  const pendingRollValueRef = useRef<number | null>(null);
 
   // Synchronized state refs to eliminate React closure stale state issues
   const playersRef = useRef<LudoPlayer[]>(players);
@@ -508,8 +514,9 @@ export const PlayLudoPage: React.FC<{
   // Helper sleep for animations
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Roll Dice Action
+  // Roll Dice Action - Strictly Fair & Unbiased Generation
   const handleRollDice = (targetColor?: LudoColor | unknown) => {
+    // 1. Strict atomic lock against double-clicks, rapid tapping, and race conditions
     if (
       isRollingRef.current ||
       waitingForMoveRef.current ||
@@ -529,21 +536,30 @@ export const PlayLudoPage: React.FC<{
 
     clearAllTimers();
 
+    // 2. Sequence Step 1: Generate fair random result ONCE via Centralized Dice Engine
+    const generatedRoll = rollFairDice();
+    pendingRollValueRef.current = generatedRoll;
+
+    // 3. Sequence Step 2: Lock state and trigger visual animation
     setIsRolling(true);
     isRollingRef.current = true;
     setWaitingForMove(false);
     waitingForMoveRef.current = false;
     ludoAudio.playDiceRoll();
 
+    // 4. Sequence Step 3: Play fixed duration visual animation (650ms)
     setTimeout(() => {
       if (gameStateRef.current !== 'playing') return;
 
-      const rolled = Math.floor(Math.random() * 6) + 1;
+      // 5. Sequence Step 4: Display the already-generated stored result
+      const rolled = pendingRollValueRef.current ?? generatedRoll;
+      pendingRollValueRef.current = null;
       setDiceValue(rolled);
       diceValueRef.current = rolled;
       setIsRolling(false);
       isRollingRef.current = false;
 
+      // 6. Sequence Step 5: Ludo Rules Engine processes rules based on the rolled value
       // Check 3 consecutive sixes rule
       let newConsecutiveSixes = rolled === 6 ? currentPlayer.consecutiveSixes + 1 : 0;
       if (newConsecutiveSixes === 3) {
@@ -601,7 +617,7 @@ export const PlayLudoPage: React.FC<{
         waitingForMoveRef.current = true;
         setActiveTurnNotice(`${updatedCurrentPlayer.name}: Tap a glowing token to move ${rolled} step${rolled > 1 ? 's' : ''}!`);
       }
-    }, 700);
+    }, 650);
   };
 
   // Bot AI intelligent token selection
@@ -1558,44 +1574,6 @@ export const PlayLudoPage: React.FC<{
           {/* Main Board & Center Stage */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* Live Turn Notification Card */}
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-md flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center space-x-3 min-w-0">
-                <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black shadow-md shrink-0"
-                  style={{ background: COLOR_CONFIG[turnColor].bgHex }}
-                >
-                  {COLOR_CONFIG[turnColor].name.charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">
-                    Current Turn
-                  </div>
-                  <div className="text-sm font-black text-zinc-900 dark:text-white truncate">
-                    {currentActivePlayer?.name} ({COLOR_CONFIG[turnColor].name})
-                  </div>
-                </div>
-              </div>
-
-              {/* Action / Status Area */}
-              <div className="flex items-center gap-2">
-                {!currentActivePlayer?.isBot && !waitingForMove && !isRolling && (
-                  <button
-                    id="btn-quick-roll-top"
-                    type="button"
-                    onClick={() => handleRollDice()}
-                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 text-xs font-black shadow-md active:scale-95 transition-all cursor-pointer animate-bounce flex items-center gap-1.5 ring-2 ring-amber-400/50"
-                  >
-                    <span>🎲 Tap to Roll</span>
-                  </button>
-                )}
-
-                <div className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold text-right">
-                  {activeTurnNotice}
-                </div>
-              </div>
-            </div>
-
             {/* Interactive Ludo Board */}
             <div className="flex justify-center">
               <LudoBoard
@@ -1612,45 +1590,78 @@ export const PlayLudoPage: React.FC<{
                 }}
               />
             </div>
+
+            {/* ================= MERGED CURRENT TURN & DICE CONTROLLER CARD ================= */}
+            <div
+              id="ludo-turn-and-dice-panel"
+              className={`bg-white dark:bg-zinc-900 rounded-3xl p-4 sm:p-5 border-2 shadow-xl transition-all ${
+                COLOR_CONFIG[turnColor].borderClass
+              } ring-2 ring-amber-400/20`}
+            >
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {/* Player Info & Turn Status */}
+                <div className="flex items-center space-x-3.5 w-full sm:w-auto min-w-0">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-md shrink-0 border border-white/20"
+                    style={{ background: COLOR_CONFIG[turnColor].bgHex }}
+                  >
+                    {currentActivePlayer?.isBot ? (
+                      <Bot className="w-6 h-6" />
+                    ) : (
+                      <User className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                        {COLOR_CONFIG[turnColor].name} Turn
+                      </span>
+                      {diceValue && !isRolling && (
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          Rolled: {diceValue}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-base sm:text-lg font-black text-zinc-900 dark:text-white truncate mt-0.5">
+                      {currentActivePlayer?.name}
+                    </div>
+                    <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      {waitingForMove ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                          ✨ Tap a highlighted token on the board to move
+                        </span>
+                      ) : currentActivePlayer?.isBot ? (
+                        <span className="text-zinc-500 dark:text-zinc-400">
+                          🤖 AI Bot is rolling automatically...
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400 font-bold">
+                          {activeTurnNotice || 'Tap the dice or roll button to roll'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dice Controller */}
+                <div className="flex items-center justify-center shrink-0">
+                  <LudoDice
+                    value={diceValue}
+                    isRolling={isRolling}
+                    canRoll={!waitingForMove && !isRolling && !currentActivePlayer?.isBot}
+                    color={turnColor}
+                    playerName={currentActivePlayer?.name}
+                    onRoll={() => handleRollDice()}
+                    isBot={currentActivePlayer?.isBot}
+                    hideSubtext={true}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Side Panel: Player Cards, Dice Controller & Live Log */}
+          {/* Side Panel: Player Cards & Live Log */}
           <div className="lg:col-span-4 space-y-4">
-            
-            {/* Active Dice Controller Box */}
-            <div className="bg-gradient-to-br from-white via-zinc-50 to-amber-50/30 dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 rounded-3xl p-5 border-2 border-amber-400/40 shadow-xl text-center space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  Dice Control
-                </span>
-                {diceValue && !isRolling && (
-                  <span className="text-xs font-extrabold text-zinc-900 dark:text-white">
-                    Rolled: <span className="text-amber-500 text-sm font-black">{diceValue}</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="py-2 flex justify-center">
-                <LudoDice
-                  value={diceValue}
-                  isRolling={isRolling}
-                  canRoll={!waitingForMove && !isRolling && !currentActivePlayer?.isBot}
-                  color={turnColor}
-                  playerName={currentActivePlayer?.name}
-                  onRoll={() => handleRollDice()}
-                  isBot={currentActivePlayer?.isBot}
-                />
-              </div>
-
-              {/* Instructions */}
-              <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
-                {waitingForMove
-                  ? 'Tap a glowing token on the board to move!'
-                  : currentActivePlayer?.isBot
-                  ? 'AI Bot rolling automatically...'
-                  : 'Tap the 3D dice above to roll!'}
-              </p>
-            </div>
 
             {/* 4 Player Status Cards */}
             <div className="space-y-2.5">

@@ -341,7 +341,9 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
         SUM(CASE WHEN mr.position = 3 THEN 1 ELSE 0 END) as pos_3rd,
         SUM(CASE WHEN mr.position = 4 THEN 1 ELSE 0 END) as pos_4th,
         SUM(CASE WHEN mr.position = m.player_count THEN 1 ELSE 0 END) as last_place,
-        SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
+        SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes,
+        COALESCE(SUM(mr.kills), 0) as total_kills,
+        COALESCE(SUM(mr.deaths), 0) as total_deaths
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE mr.player_id = ? AND m.is_deleted = 0
@@ -357,6 +359,10 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
     const pos4 = Number(overallStats.pos_4th) || 0;
     const lastPlace = Number(overallStats.last_place) || 0;
     const podium = Number(overallStats.podium_finishes) || 0;
+    const totalKills = Number(overallStats.total_kills) || 0;
+    const totalDeaths = Number(overallStats.total_deaths) || 0;
+    const netCombatPoints = (totalKills * 5) - (totalDeaths * 5);
+    const killDeathRatio = totalDeaths > 0 ? Number((totalKills / totalDeaths).toFixed(2)) : totalKills;
 
     const avgScore = totalMatches > 0 ? Number((totalPoints / totalMatches).toFixed(2)) : 0;
     const avgPos = totalMatches > 0 ? Number(Number(overallStats.average_position).toFixed(2)) : 0;
@@ -365,7 +371,7 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
 
     // Recent form matches (ordered latest first)
     const recentMatchesSql = `
-      SELECT mr.position, mr.points_awarded, m.match_date, m.match_time, m.friendly_id, m.player_count
+      SELECT mr.position, mr.points_awarded, mr.kills, mr.deaths, m.match_date, m.match_time, m.friendly_id, m.player_count
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE mr.player_id = ? AND m.is_deleted = 0
@@ -375,6 +381,8 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
     const rawRecentMatches = await query<any>(recentMatchesSql, [playerId]);
     const recentMatches = rawRecentMatches.map((m) => ({
       ...m,
+      kills: Number(m.kills) || 0,
+      deaths: Number(m.deaths) || 0,
       match_date: m.match_date && String(m.match_date).includes('T') ? String(m.match_date).split('T')[0] : String(m.match_date || '')
     }));
 
@@ -421,7 +429,9 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
         COUNT(mr.id) as matches,
         COALESCE(SUM(mr.points_awarded), 0) as points,
         SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins,
-        ROUND(AVG(mr.position), 2) as avg_pos
+        ROUND(AVG(mr.position), 2) as avg_pos,
+        COALESCE(SUM(mr.kills), 0) as kills,
+        COALESCE(SUM(mr.deaths), 0) as deaths
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE mr.player_id = ? AND m.is_deleted = 0
@@ -429,9 +439,9 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
     `;
     const bySizeRows = await query<any>(bySizeSql, [playerId]);
     const performanceBySize = {
-      4: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0 },
-      3: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0 },
-      2: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0 }
+      4: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0, kills: 0, deaths: 0 },
+      3: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0, kills: 0, deaths: 0 },
+      2: { matches: 0, wins: 0, points: 0, avg_score: 0, win_pct: 0, avg_pos: 0, kills: 0, deaths: 0 }
     };
 
     bySizeRows.forEach((r) => {
@@ -446,7 +456,9 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
           points: Number(pts.toFixed(2)),
           avg_score: mCount > 0 ? Number((pts / mCount).toFixed(2)) : 0,
           win_pct: mCount > 0 ? Number(((wCount / mCount) * 100).toFixed(1)) : 0,
-          avg_pos: Number(r.avg_pos) || 0
+          avg_pos: Number(r.avg_pos) || 0,
+          kills: Number(r.kills) || 0,
+          deaths: Number(r.deaths) || 0
         };
       }
     });
@@ -457,7 +469,9 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
         SUBSTRING(m.match_date, 1, 7) as month,
         COUNT(mr.id) as matches,
         COALESCE(SUM(mr.points_awarded), 0) as points,
-        SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins
+        SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins,
+        COALESCE(SUM(mr.kills), 0) as kills,
+        COALESCE(SUM(mr.deaths), 0) as deaths
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE mr.player_id = ? AND m.is_deleted = 0
@@ -469,13 +483,17 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
       const m = Number(r.matches) || 0;
       const p = Number(r.points) || 0;
       const w = Number(r.wins) || 0;
+      const k = Number(r.kills) || 0;
+      const d = Number(r.deaths) || 0;
       return {
         month: r.month,
         matches: m,
         points: Number(p.toFixed(2)),
         wins: w,
         average_score: m > 0 ? Number((p / m).toFixed(2)) : 0,
-        win_pct: m > 0 ? Number(((w / m) * 100).toFixed(1)) : 0
+        win_pct: m > 0 ? Number(((w / m) * 100).toFixed(1)) : 0,
+        kills: k,
+        deaths: d
       };
     });
 
@@ -499,6 +517,10 @@ router.get('/player/:id', optionalAuthenticateToken, async (req, res) => {
         podiumFinishes: podium,
         winPercentage: winPct,
         podiumPercentage: podiumPct,
+        totalKills,
+        totalDeaths,
+        netCombatPoints,
+        killDeathRatio,
         currentWinStreak,
         bestWinStreak,
         currentPodiumStreak,
@@ -543,8 +565,8 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
     // Find matches where BOTH player1 and player2 played together
     const sharedMatchesSql = `
       SELECT m.id, m.friendly_id, m.match_date, m.match_time, m.player_count,
-        mr1.position as p1_pos, mr1.points_awarded as p1_pts,
-        mr2.position as p2_pos, mr2.points_awarded as p2_pts
+        mr1.position as p1_pos, mr1.points_awarded as p1_pts, mr1.kills as p1_kills, mr1.deaths as p1_deaths,
+        mr2.position as p2_pos, mr2.points_awarded as p2_pts, mr2.kills as p2_kills, mr2.deaths as p2_deaths
       FROM matches m
       JOIN match_results mr1 ON m.id = mr1.match_id AND mr1.player_id = ?
       JOIN match_results mr2 ON m.id = mr2.match_id AND mr2.player_id = ?
@@ -555,6 +577,10 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
     const rawEncounters = await query<any>(sharedMatchesSql, [player1Id, player2Id]);
     const encounters = rawEncounters.map((e) => ({
       ...e,
+      p1_kills: Number(e.p1_kills) || 0,
+      p1_deaths: Number(e.p1_deaths) || 0,
+      p2_kills: Number(e.p2_kills) || 0,
+      p2_deaths: Number(e.p2_deaths) || 0,
       match_date: e.match_date && String(e.match_date).includes('T') ? String(e.match_date).split('T')[0] : String(e.match_date || '')
     }));
 
@@ -567,17 +593,29 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
     let p2TotalPts = 0;
     let p1TotalPos = 0;
     let p2TotalPos = 0;
+    let p1TotalKills = 0;
+    let p1TotalDeaths = 0;
+    let p2TotalKills = 0;
+    let p2TotalDeaths = 0;
 
     encounters.forEach((e) => {
       const pos1 = Number(e.p1_pos);
       const pos2 = Number(e.p2_pos);
       const pts1 = Number(e.p1_pts);
       const pts2 = Number(e.p2_pts);
+      const k1 = Number(e.p1_kills) || 0;
+      const d1 = Number(e.p1_deaths) || 0;
+      const k2 = Number(e.p2_kills) || 0;
+      const d2 = Number(e.p2_deaths) || 0;
 
       p1TotalPts += pts1;
       p2TotalPts += pts2;
       p1TotalPos += pos1;
       p2TotalPos += pos2;
+      p1TotalKills += k1;
+      p1TotalDeaths += d1;
+      p2TotalKills += k2;
+      p2TotalDeaths += d2;
 
       if (pos1 < pos2) p1AheadCount++;
       else if (pos2 < pos1) p2AheadCount++;
@@ -585,6 +623,9 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
       if (pos1 === 1) p1WinsCount++;
       if (pos2 === 1) p2WinsCount++;
     });
+
+    const p1NetCombatPts = (p1TotalKills * 5) - (p1TotalDeaths * 5);
+    const p2NetCombatPts = (p2TotalKills * 5) - (p2TotalDeaths * 5);
 
     return res.json({
       player1: p1,
@@ -595,6 +636,12 @@ router.get('/head-to-head', optionalAuthenticateToken, async (req, res) => {
         player2AheadCount: p2AheadCount,
         player1WinsCount: p1WinsCount,
         player2WinsCount: p2WinsCount,
+        player1TotalKills: p1TotalKills,
+        player1TotalDeaths: p1TotalDeaths,
+        player1NetCombatPts: p1NetCombatPts,
+        player2TotalKills: p2TotalKills,
+        player2TotalDeaths: p2TotalDeaths,
+        player2NetCombatPts: p2NetCombatPts,
         player1AvgScore: matchesTogether > 0 ? Number((p1TotalPts / matchesTogether).toFixed(2)) : 0,
         player2AvgScore: matchesTogether > 0 ? Number((p2TotalPts / matchesTogether).toFixed(2)) : 0,
         player1AvgPosition: matchesTogether > 0 ? Number((p1TotalPos / matchesTogether).toFixed(2)) : 0,
@@ -629,7 +676,9 @@ router.get('/multi-player', optionalAuthenticateToken, async (req, res) => {
         ROUND(AVG(mr.points_awarded), 2) as average_score,
         ROUND(AVG(mr.position), 2) as average_position,
         SUM(CASE WHEN mr.position = 1 THEN 1 ELSE 0 END) as wins_1st,
-        SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes
+        SUM(CASE WHEN mr.position <= 3 THEN 1 ELSE 0 END) as podium_finishes,
+        COALESCE(SUM(mr.kills), 0) as total_kills,
+        COALESCE(SUM(mr.deaths), 0) as total_deaths
       FROM match_results mr
       JOIN matches m ON mr.match_id = m.id
       WHERE mr.player_id IN (${placeholders}) AND m.is_deleted = 0
@@ -643,6 +692,9 @@ router.get('/multi-player', optionalAuthenticateToken, async (req, res) => {
       const pts = Number(st.total_points) || 0;
       const wins = Number(st.wins_1st) || 0;
       const podium = Number(st.podium_finishes) || 0;
+      const k = Number(st.total_kills) || 0;
+      const d = Number(st.total_deaths) || 0;
+      const netCombat = (k * 5) - (d * 5);
 
       return {
         player: p,
@@ -653,7 +705,10 @@ router.get('/multi-player', optionalAuthenticateToken, async (req, res) => {
         wins,
         win_pct: mCount > 0 ? Number(((wins / mCount) * 100).toFixed(1)) : 0,
         podium_finishes: podium,
-        podium_pct: mCount > 0 ? Number(((podium / mCount) * 100).toFixed(1)) : 0
+        podium_pct: mCount > 0 ? Number(((podium / mCount) * 100).toFixed(1)) : 0,
+        total_kills: k,
+        total_deaths: d,
+        net_combat_points: netCombat
       };
     });
 

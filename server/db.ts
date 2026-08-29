@@ -363,6 +363,20 @@ function initEmbeddedSchema() {
   } catch (err) {
     // ignore
   }
+
+  // Ensure default AI Bots exist in players table so Ludo play matches have distinct IDs
+  try {
+    sqlJsDb.exec(`
+      INSERT OR IGNORE INTO players (id, full_name, nickname, date_joined, is_active) VALUES
+      (1, 'Jignesh Panchal', 'Master', '2026-01-01', 1),
+      (2, 'Bot Red (AI)', 'Red AI', '2026-01-01', 1),
+      (3, 'Bot Green (AI)', 'Green AI', '2026-01-01', 1),
+      (4, 'Bot Yellow (AI)', 'Yellow AI', '2026-01-01', 1),
+      (5, 'Bot Blue (AI)', 'Blue AI', '2026-01-01', 1);
+    `);
+  } catch (err) {
+    // ignore
+  }
 }
 
 /**

@@ -148,11 +148,13 @@ export const PlayLudoPage: React.FC<{
   const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(() => getPendingMatches().length);
   const [isSyncingOffline, setIsSyncingOffline] = useState<boolean>(false);
   const [resumedFromCache, setResumedFromCache] = useState<boolean>(false);
+  const [isTurnLocked, setIsTurnLocked] = useState<boolean>(false);
 
   // Dedicated independent timers to prevent cross-cancellation
   const botRollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const botMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const turnTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoMoveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Single-roll atomic result storage (separates Dice Engine from Rules Engine)
   const pendingRollValueRef = useRef<number | null>(null);
@@ -166,6 +168,7 @@ export const PlayLudoPage: React.FC<{
   const diceValueRef = useRef<number | null>(diceValue);
   const gameStateRef = useRef<'setup' | 'playing' | 'gameover'>(gameState);
   const gameLogsRef = useRef<string[]>(gameLogs);
+  const isTurnLockedRef = useRef<boolean>(false);
 
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { turnColorRef.current = turnColor; }, [turnColor]);
@@ -175,6 +178,7 @@ export const PlayLudoPage: React.FC<{
   useEffect(() => { diceValueRef.current = diceValue; }, [diceValue]);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { gameLogsRef.current = gameLogs; }, [gameLogs]);
+  useEffect(() => { isTurnLockedRef.current = isTurnLocked; }, [isTurnLocked]);
 
   // Clear all pending timeouts
   const clearAllTimers = () => {
@@ -189,6 +193,10 @@ export const PlayLudoPage: React.FC<{
     if (turnTransitionTimerRef.current) {
       clearTimeout(turnTransitionTimerRef.current);
       turnTransitionTimerRef.current = null;
+    }
+    if (autoMoveTimerRef.current) {
+      clearTimeout(autoMoveTimerRef.current);
+      autoMoveTimerRef.current = null;
     }
   };
 
@@ -496,6 +504,8 @@ export const PlayLudoPage: React.FC<{
     isRollingRef.current = false;
     setWaitingForMove(false);
     waitingForMoveRef.current = false;
+    setIsTurnLocked(false);
+    isTurnLockedRef.current = false;
     setRankings([]);
     rankingsRef.current = [];
     setKillLogs([]);
@@ -545,11 +555,15 @@ export const PlayLudoPage: React.FC<{
 
   // Roll Dice Action - Strictly Fair & Unbiased Generation
   const handleRollDice = (targetColor?: LudoColor | unknown) => {
-    // 1. Strict atomic lock against double-clicks, rapid tapping, and race conditions
+    // 1. Strict atomic lock against double-clicks, rapid tapping, race conditions, and transition states
     if (
+      isTurnLockedRef.current ||
       isRollingRef.current ||
       waitingForMoveRef.current ||
       walkingTokenKeyRef.current ||
+      diceValueRef.current !== null ||
+      turnTransitionTimerRef.current !== null ||
+      autoMoveTimerRef.current !== null ||
       gameStateRef.current !== 'playing'
     ) {
       return;
@@ -563,13 +577,19 @@ export const PlayLudoPage: React.FC<{
     const currentPlayer = playersRef.current.find((p) => p.color === validColor);
     if (!currentPlayer || currentPlayer.hasFinished) return;
 
-    clearAllTimers();
+    // Clear any bot roll timers
+    if (botRollTimerRef.current) {
+      clearTimeout(botRollTimerRef.current);
+      botRollTimerRef.current = null;
+    }
 
     // 2. Sequence Step 1: Generate fair random result ONCE via Centralized Dice Engine
     const generatedRoll = rollFairDice();
     pendingRollValueRef.current = generatedRoll;
 
     // 3. Sequence Step 2: Lock state and trigger visual animation
+    isTurnLockedRef.current = true;
+    setIsTurnLocked(true);
     setIsRolling(true);
     isRollingRef.current = true;
     setWaitingForMove(false);
@@ -587,6 +607,10 @@ export const PlayLudoPage: React.FC<{
       diceValueRef.current = rolled;
       setIsRolling(false);
       isRollingRef.current = false;
+
+      // Turn remains locked while move is pending / processing
+      isTurnLockedRef.current = true;
+      setIsTurnLocked(true);
 
       // 6. Sequence Step 5: Ludo Rules Engine processes rules based on the rolled value
       // Check 4 consecutive sixes rule
@@ -637,7 +661,10 @@ export const PlayLudoPage: React.FC<{
         // Auto-move single legal option for human player for smooth flow
         logEvent(`${updatedCurrentPlayer.name} rolled a ${rolled}. Auto-moving Token ${legalMoves[0].id + 1}.`);
         setActiveTurnNotice(`${updatedCurrentPlayer.name} moving Token ${legalMoves[0].id + 1}...`);
-        setTimeout(() => {
+        setWaitingForMove(false);
+        waitingForMoveRef.current = false;
+        autoMoveTimerRef.current = setTimeout(() => {
+          autoMoveTimerRef.current = null;
           executeMove(legalMoves[0], rolled, updatedPlayers);
         }, 400);
       } else {
@@ -717,6 +744,8 @@ export const PlayLudoPage: React.FC<{
     currentPlayers: LudoPlayer[]
   ) => {
     clearAllTimers();
+    isTurnLockedRef.current = true;
+    setIsTurnLocked(true);
     setWaitingForMove(false);
     waitingForMoveRef.current = false;
 
@@ -962,6 +991,8 @@ export const PlayLudoPage: React.FC<{
       diceValueRef.current = null;
       setWaitingForMove(false);
       waitingForMoveRef.current = false;
+      setIsTurnLocked(false);
+      isTurnLockedRef.current = false;
 
       if (player.isBot) {
         botRollTimerRef.current = setTimeout(() => {
@@ -969,6 +1000,9 @@ export const PlayLudoPage: React.FC<{
         }, 800);
       }
     } else {
+      // Keep turn locked while transitioning to next player
+      isTurnLockedRef.current = true;
+      setIsTurnLocked(true);
       turnTransitionTimerRef.current = setTimeout(() => {
         advanceToNextTurn(player.color, updatedPlayers);
       }, 700);
@@ -1003,6 +1037,10 @@ export const PlayLudoPage: React.FC<{
     isRollingRef.current = false;
     setWaitingForMove(false);
     waitingForMoveRef.current = false;
+    setWalkingTokenKey(null);
+    walkingTokenKeyRef.current = null;
+    setIsTurnLocked(false);
+    isTurnLockedRef.current = false;
 
     const nextPlayer = cleanedPlayers.find((p) => p.color === nextColor)!;
     setActiveTurnNotice(`${nextPlayer.name}'s turn (${COLOR_CONFIG[nextPlayer.color].name})`);
@@ -1018,7 +1056,7 @@ export const PlayLudoPage: React.FC<{
 
   // Auto-recovery watcher for bot turns: ensure bot never stays idle
   useEffect(() => {
-    if (gameState === 'playing' && !isRolling && !waitingForMove && diceValue === null) {
+    if (gameState === 'playing' && !isRolling && !waitingForMove && !isTurnLocked && diceValue === null) {
       const cur = players.find((p) => p.color === turnColor);
       if (cur && cur.isBot && !cur.hasFinished) {
         if (!botRollTimerRef.current) {
@@ -1029,7 +1067,7 @@ export const PlayLudoPage: React.FC<{
         }
       }
     }
-  }, [turnColor, gameState, isRolling, waitingForMove, diceValue, players]);
+  }, [turnColor, gameState, isRolling, waitingForMove, isTurnLocked, diceValue, players]);
 
   // Direct Match Submission to League Master (with offline outbox fallback)
   const handleSaveToLeagueMaster = async () => {
@@ -1700,7 +1738,15 @@ export const PlayLudoPage: React.FC<{
                   <LudoDice
                     value={diceValue}
                     isRolling={isRolling}
-                    canRoll={!waitingForMove && !isRolling && !currentActivePlayer?.isBot}
+                    canRoll={
+                      !isTurnLocked &&
+                      !waitingForMove &&
+                      !isRolling &&
+                      !walkingTokenKey &&
+                      diceValue === null &&
+                      !currentActivePlayer?.isBot &&
+                      gameState === 'playing'
+                    }
                     color={turnColor}
                     playerName={currentActivePlayer?.name}
                     onRoll={() => handleRollDice()}

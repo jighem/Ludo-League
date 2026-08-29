@@ -50,6 +50,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       mostWinsThisMonth: string;
       mostActivePlayer: string;
       highestWinRatePlayer: string;
+      mostKilledThisMonth?: string;
+      topHunterThisMonth?: string;
     };
     latestMatch: Match | null;
     leaderboard: LeaderboardItem[];
@@ -283,6 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Played</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Wins</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Win %</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Combat (K/D)</th>
                     <th className="py-2.5 px-3 text-right whitespace-nowrap">Avg Score</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
                   </tr>
@@ -334,6 +337,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {item.wins_1st}
                       </td>
                       <td className="py-3 px-3 text-center whitespace-nowrap">{item.win_pct}%</td>
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <span className="font-bold text-rose-500">⚔️ {item.total_kills || 0}</span>
+                        <span className="text-zinc-400 mx-1">/</span>
+                        <span className="font-bold text-zinc-500">💀 {item.total_deaths || 0}</span>
+                      </td>
                       <td className="py-3 px-3 text-right font-black text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
                         {item.average_score.toFixed(2)}
                       </td>
@@ -393,7 +401,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <span className="font-black text-sm">
                           {res.position === 1 ? '🥇' : res.position === 2 ? '🥈' : res.position === 3 ? '🥉' : '4️⃣'}
                         </span>
-                        <span className="font-bold text-zinc-900 dark:text-zinc-100">{res.player_name}</span>
+                        <div>
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{res.player_name}</span>
+                          <div className="text-[10px] text-zinc-400 font-bold">
+                            <span className="text-rose-400">⚔️ {res.kills || 0} kills</span>
+                            <span className="mx-1">•</span>
+                            <span className="text-zinc-500">💀 {res.deaths || 0} deaths</span>
+                          </div>
+                        </div>
                       </div>
                       <span className="font-black text-amber-600 dark:text-amber-400">
                         +{res.points_awarded} pts
@@ -419,6 +434,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div className="font-bold text-zinc-900 dark:text-zinc-100">{summary.mostWinsThisMonth}</div>
                 </div>
                 <Flame className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-rose-500">Top Hunter ⚔️</div>
+                  <div className="font-bold text-zinc-900 dark:text-zinc-100">{summary.topHunterThisMonth || 'None'}</div>
+                </div>
+                <span className="text-lg">🎯</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-zinc-500">Most Knockouts 💀</div>
+                  <div className="font-bold text-zinc-900 dark:text-zinc-100">{summary.mostKilledThisMonth || 'None'}</div>
+                </div>
+                <span className="text-lg">🛡️</span>
               </div>
 
               <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">

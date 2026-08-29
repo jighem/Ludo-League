@@ -200,7 +200,7 @@ export const HeadToHeadPage: React.FC = () => {
                 </div>
 
                 {/* Comparative Metrics Table */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-4 border-t border-slate-100 dark:border-slate-800">
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl text-center">
                     <div className="text-[10px] text-slate-400 uppercase font-bold">1st Place Wins</div>
                     <div className="font-black text-base mt-1">
@@ -209,14 +209,24 @@ export const HeadToHeadPage: React.FC = () => {
                   </div>
 
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl text-center">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Average Score (Shared Games)</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Average Score</div>
                     <div className="font-black text-base text-amber-600 dark:text-amber-400 mt-1">
                       {h2hData.headToHead.player1AvgScore} vs {h2hData.headToHead.player2AvgScore}
                     </div>
                   </div>
 
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-center">
+                    <div className="text-[10px] text-rose-400 uppercase font-bold">Combat Kills ⚔️</div>
+                    <div className="font-black text-base text-rose-400 mt-1">
+                      {h2hData.headToHead.player1TotalKills || 0} vs {h2hData.headToHead.player2TotalKills || 0}
+                    </div>
+                    <div className="text-[9px] text-zinc-500 mt-0.5">
+                      Deaths: {h2hData.headToHead.player1TotalDeaths || 0} vs {h2hData.headToHead.player2TotalDeaths || 0}
+                    </div>
+                  </div>
+
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl text-center">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold">Average Finish Position</div>
+                    <div className="text-[10px] text-slate-400 uppercase font-bold">Average Position</div>
                     <div className="font-black text-base mt-1">
                       {h2hData.headToHead.player1AvgPosition} vs {h2hData.headToHead.player2AvgPosition}
                     </div>
@@ -226,7 +236,7 @@ export const HeadToHeadPage: React.FC = () => {
 
               {/* Shared Matches History Table */}
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Recent Shared Matches</h4>
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">Recent Shared Matches & Combat Stats</h4>
 
                 {h2hData.headToHead.latestEncounters.length === 0 ? (
                   <p className="text-xs text-slate-400">These two players have not participated in a match together yet.</p>
@@ -237,8 +247,8 @@ export const HeadToHeadPage: React.FC = () => {
                         <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-extrabold uppercase text-[10px]">
                           <th className="py-2.5 px-3">Match</th>
                           <th className="py-2.5 px-3">Date</th>
-                          <th className="py-2.5 px-3 text-center">{h2hData.player1.full_name} Rank</th>
-                          <th className="py-2.5 px-3 text-center">{h2hData.player2.full_name} Rank</th>
+                          <th className="py-2.5 px-3 text-center">{h2hData.player1.full_name}</th>
+                          <th className="py-2.5 px-3 text-center">{h2hData.player2.full_name}</th>
                           <th className="py-2.5 px-3 text-center">Outcome</th>
                         </tr>
                       </thead>
@@ -252,11 +262,21 @@ export const HeadToHeadPage: React.FC = () => {
                             <tr key={enc.id}>
                               <td className="py-3 px-3 font-mono font-bold text-amber-600">{enc.friendly_id}</td>
                               <td className="py-3 px-3 text-slate-500">{formatDateStr(enc.match_date)}</td>
-                              <td className="py-3 px-3 text-center font-bold">
-                                {p1Pos === 1 ? '🥇 1st' : p1Pos === 2 ? '🥈 2nd' : p1Pos === 3 ? '🥉 3rd' : '4th'} (+{enc.p1_pts} pts)
+                              <td className="py-3 px-3 text-center">
+                                <div className="font-bold">
+                                  {p1Pos === 1 ? '🥇 1st' : p1Pos === 2 ? '🥈 2nd' : p1Pos === 3 ? '🥉 3rd' : '4th'} (+{enc.p1_pts} pts)
+                                </div>
+                                <div className="text-[10px] text-zinc-400 font-bold mt-0.5">
+                                  <span className="text-rose-400">⚔️ {enc.p1_kills || 0}</span> / <span>💀 {enc.p1_deaths || 0}</span>
+                                </div>
                               </td>
-                              <td className="py-3 px-3 text-center font-bold">
-                                {p2Pos === 1 ? '🥇 1st' : p2Pos === 2 ? '🥈 2nd' : p2Pos === 3 ? '🥉 3rd' : '4th'} (+{enc.p2_pts} pts)
+                              <td className="py-3 px-3 text-center">
+                                <div className="font-bold">
+                                  {p2Pos === 1 ? '🥇 1st' : p2Pos === 2 ? '🥈 2nd' : p2Pos === 3 ? '🥉 3rd' : '4th'} (+{enc.p2_pts} pts)
+                                </div>
+                                <div className="text-[10px] text-zinc-400 font-bold mt-0.5">
+                                  <span className="text-rose-400">⚔️ {enc.p2_kills || 0}</span> / <span>💀 {enc.p2_deaths || 0}</span>
+                                </div>
                               </td>
                               <td className="py-3 px-3 text-center font-black text-amber-600 dark:text-amber-400">
                                 {winner} Ahead
@@ -299,7 +319,7 @@ export const HeadToHeadPage: React.FC = () => {
 
           {/* Comparison Cards Grid */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">Multi-Player Breakdown</h3>
+            <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">Multi-Player Breakdown & Combat Metrics</h3>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -309,10 +329,11 @@ export const HeadToHeadPage: React.FC = () => {
                     <th className="py-3 px-4 text-center">Matches</th>
                     <th className="py-3 px-4 text-center">Wins</th>
                     <th className="py-3 px-4 text-center">Win %</th>
+                    <th className="py-3 px-4 text-center">Combat (K/D)</th>
+                    <th className="py-3 px-4 text-right">Net Combat</th>
                     <th className="py-3 px-4 text-right">Total Points</th>
                     <th className="py-3 px-4 text-right">Avg Score</th>
                     <th className="py-3 px-4 text-center">Avg Finish</th>
-                    <th className="py-3 px-4 text-center">Podium %</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -322,10 +343,19 @@ export const HeadToHeadPage: React.FC = () => {
                       <td className="py-3.5 px-4 text-center font-bold">{item.total_matches}</td>
                       <td className="py-3.5 px-4 text-center font-bold text-emerald-600">{item.wins}</td>
                       <td className="py-3.5 px-4 text-center font-bold">{item.win_pct}%</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="font-bold text-rose-500">⚔️ {item.total_kills || 0}</span>
+                        <span className="text-zinc-400 mx-1">/</span>
+                        <span className="font-bold text-zinc-500">💀 {item.total_deaths || 0}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold">
+                        <span className={(item.net_combat_points || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                          {(item.net_combat_points || 0) >= 0 ? `+${item.net_combat_points || 0}` : item.net_combat_points} pts
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4 text-right font-bold">{item.total_points.toFixed(2)}</td>
                       <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm">{item.average_score.toFixed(2)}</td>
                       <td className="py-3.5 px-4 text-center font-bold">{item.average_position.toFixed(2)}</td>
-                      <td className="py-3.5 px-4 text-center text-slate-600">{item.podium_pct}%</td>
                     </tr>
                   ))}
                 </tbody>

@@ -10,7 +10,9 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
     const { search, status } = req.query;
     let sql = `
       SELECT p.*,
-        (SELECT COUNT(*) FROM match_results mr JOIN matches m ON mr.match_id = m.id WHERE mr.player_id = p.id AND m.is_deleted = 0) as total_matches
+        (SELECT COUNT(*) FROM match_results mr JOIN matches m ON mr.match_id = m.id WHERE mr.player_id = p.id AND m.is_deleted = 0) as total_matches,
+        (SELECT COALESCE(SUM(mr.kills), 0) FROM match_results mr JOIN matches m ON mr.match_id = m.id WHERE mr.player_id = p.id AND m.is_deleted = 0) as total_kills,
+        (SELECT COALESCE(SUM(mr.deaths), 0) FROM match_results mr JOIN matches m ON mr.match_id = m.id WHERE mr.player_id = p.id AND m.is_deleted = 0) as total_deaths
       FROM players p
       WHERE 1=1
     `;
@@ -31,6 +33,37 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
 
     const players = await query<any>(sql, params);
     return res.json({ players });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Ensure a player exists by name (case-insensitive) or create one (useful for bots/guests)
+router.post('/ensure', optionalAuthenticateToken, async (req, res) => {
+  try {
+    const { name, nickname } = req.body;
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'Player name is required' });
+    }
+    const cleanName = String(name).trim();
+    const existing = await query<any>('SELECT * FROM players WHERE LOWER(full_name) = LOWER(?)', [cleanName]);
+    if (existing.length > 0) {
+      return res.json({ player: existing[0], created: false });
+    }
+    const dateJoined = new Date().toISOString().split('T')[0];
+    const result = await execute(
+      `INSERT INTO players (full_name, nickname, date_joined, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [cleanName, nickname ? String(nickname).trim() : null, dateJoined]
+    );
+    const newPlayer = {
+      id: result.insertId,
+      full_name: cleanName,
+      nickname: nickname ? String(nickname).trim() : null,
+      date_joined: dateJoined,
+      is_active: 1
+    };
+    return res.json({ player: newPlayer, created: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

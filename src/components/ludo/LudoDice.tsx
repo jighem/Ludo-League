@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { LudoColor, COLOR_CONFIG } from '../../utils/ludoEngine';
 import { Sparkles } from 'lucide-react';
 
@@ -25,6 +25,21 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
 }) => {
   const [displayedValue, setDisplayedValue] = useState<number>(value || 1);
   const colorCfg = COLOR_CONFIG[color];
+  const lastClickTimeRef = useRef<number>(0);
+
+  // Debounced safe click handler preventing rapid double-taps
+  const handleSafeClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < 750) {
+      return;
+    }
+    if (!canRoll || isRolling || isBot) {
+      return;
+    }
+    lastClickTimeRef.current = now;
+    onRoll();
+  };
 
   // Cycling dice numbers when rolling animation runs
   useEffect(() => {
@@ -161,12 +176,12 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
         id={`btn-dice-${color}`}
         type="button"
         disabled={!canRoll || isRolling || isBot}
-        onClick={onRoll}
+        onClick={handleSafeClick}
         className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-1.5 ${visuals.diceBg} border-2 ${visuals.borderColor} transition-all select-none shadow-xl ${
           canRoll && !isBot
-            ? `ring-4 ring-offset-2 ring-offset-zinc-950 animate-bounce cursor-pointer scale-105 shadow-2xl`
-            : `opacity-90 cursor-default`
-        } ${isRolling ? 'animate-spin' : ''}`}
+            ? `ring-4 ring-offset-2 ring-offset-zinc-950 animate-bounce cursor-pointer scale-105 shadow-2xl active:scale-95`
+            : `opacity-80 cursor-default pointer-events-none`
+        } ${isRolling ? 'animate-spin pointer-events-none' : ''}`}
         style={{
           boxShadow: canRoll
             ? `0 0 25px ${visuals.glowHex}bb, 0 10px 20px rgba(0,0,0,0.5)`

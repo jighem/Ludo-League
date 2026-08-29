@@ -13,7 +13,11 @@ import {
   ChevronLeft,
   PieChart as PieChartIcon,
   TrendingUp,
-  BarChart2
+  BarChart2,
+  Swords,
+  Skull,
+  Crosshair,
+  ShieldAlert
 } from 'lucide-react';
 
 interface PlayerProfileProps {
@@ -39,6 +43,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
       podiumFinishes: number;
       winPercentage: number;
       podiumPercentage: number;
+      totalKills?: number;
+      totalDeaths?: number;
+      netCombatPoints?: number;
+      killDeathRatio?: number;
       currentWinStreak: number;
       bestWinStreak: number;
       currentPodiumStreak: number;
@@ -52,13 +60,15 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
     recentMatches: Array<{
       position: number;
       points_awarded: number;
+      kills?: number;
+      deaths?: number;
       match_date: string;
       friendly_id: string;
     }>;
     performanceBySize: {
-      4: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number };
-      3: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number };
-      2: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number };
+      4: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number; kills?: number; deaths?: number };
+      3: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number; kills?: number; deaths?: number };
+      2: { matches: number; wins: number; points: number; avg_score: number; win_pct: number; avg_pos: number; kills?: number; deaths?: number };
     };
     monthlyPerformance: Array<{
       month: string;
@@ -67,6 +77,8 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
       wins: number;
       average_score: number;
       win_pct: number;
+      kills?: number;
+      deaths?: number;
     }>;
   } | null>(null);
 
@@ -100,6 +112,10 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
   if (!data) return null;
 
   const { player, summary, recentMatches, performanceBySize, monthlyPerformance } = data;
+  const totalKills = summary.totalKills || 0;
+  const totalDeaths = summary.totalDeaths || 0;
+  const netCombat = summary.netCombatPoints !== undefined ? summary.netCombatPoints : (totalKills * 5) - (totalDeaths * 5);
+  const kdRatio = summary.killDeathRatio !== undefined ? summary.killDeathRatio : (totalDeaths > 0 ? (totalKills / totalDeaths).toFixed(2) : totalKills);
 
   return (
     <div className="space-y-6">
@@ -138,7 +154,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
           </div>
         </div>
 
-        <div className="flex items-center space-x-4 bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800/80">
+        <div className="flex items-center space-x-3 bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800/80 overflow-x-auto">
           <div className="text-center px-2">
             <div className="text-[10px] font-bold text-zinc-500 uppercase">Avg Score</div>
             <div className="text-2xl font-black text-amber-400">
@@ -158,10 +174,83 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
           <div className="w-px h-8 bg-zinc-800" />
 
           <div className="text-center px-2">
+            <div className="text-[10px] font-bold text-zinc-500 uppercase">Kills / Deaths</div>
+            <div className="text-xl font-black text-rose-400 whitespace-nowrap">
+              ⚔️ {totalKills} <span className="text-zinc-600">/</span> 💀 {totalDeaths}
+            </div>
+          </div>
+
+          <div className="w-px h-8 bg-zinc-800" />
+
+          <div className="text-center px-2">
             <div className="text-[10px] font-bold text-zinc-500 uppercase">Matches</div>
             <div className="text-2xl font-black text-zinc-100">
               {summary.totalMatches}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Combat & Hunting Profile Panel */}
+      <div className="bg-gradient-to-r from-rose-950/30 via-zinc-900/80 to-amber-950/20 rounded-3xl p-6 border border-rose-900/40 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              <Swords className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-zinc-100 uppercase tracking-wider flex items-center gap-2">
+                Combat & Kill/Death Record
+              </h3>
+              <p className="text-xs text-zinc-400 font-medium">
+                Combat rule: +5 pts per kill, -5 pts per death knocked out
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-extrabold px-3 py-1 bg-zinc-950 rounded-full border border-zinc-800 text-zinc-300">
+            K/D Ratio: <span className="text-amber-400 font-black">{kdRatio}</span>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-rose-900/30 space-y-1">
+            <div className="flex items-center space-x-1.5 text-rose-400 text-xs font-bold">
+              <Crosshair className="w-4 h-4" />
+              <span>Total Kills</span>
+            </div>
+            <div className="text-2xl font-black text-rose-400">⚔️ {totalKills}</div>
+            <p className="text-[10px] text-zinc-500">Tokens captured</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800 space-y-1">
+            <div className="flex items-center space-x-1.5 text-zinc-400 text-xs font-bold">
+              <Skull className="w-4 h-4 text-zinc-400" />
+              <span>Total Deaths</span>
+            </div>
+            <div className="text-2xl font-black text-zinc-300">💀 {totalDeaths}</div>
+            <p className="text-[10px] text-zinc-500">Tokens sent home</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800 space-y-1">
+            <div className="flex items-center space-x-1.5 text-amber-400 text-xs font-bold">
+              <Flame className="w-4 h-4" />
+              <span>Net Combat Points</span>
+            </div>
+            <div className={`text-2xl font-black ${netCombat >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {netCombat >= 0 ? `+${netCombat}` : netCombat} pts
+            </div>
+            <p className="text-[10px] text-zinc-500">(Kills × 5) - (Deaths × 5)</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800 space-y-1">
+            <div className="flex items-center space-x-1.5 text-blue-400 text-xs font-bold">
+              <ShieldAlert className="w-4 h-4" />
+              <span>Kills Per Match</span>
+            </div>
+            <div className="text-2xl font-black text-blue-400">
+              {summary.totalMatches > 0 ? (totalKills / summary.totalMatches).toFixed(2) : '0.00'}
+            </div>
+            <p className="text-[10px] text-zinc-500">Average aggression</p>
           </div>
         </div>
       </div>
@@ -171,7 +260,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-extrabold text-zinc-100 uppercase tracking-wider flex items-center space-x-2">
             <Flame className="w-4 h-4 text-orange-400" />
-            <span>Recent Form (Last Matches)</span>
+            <span>Recent Form & Combat Action</span>
           </h3>
           <span className="text-xs font-bold text-zinc-400">Streak: {summary.currentWinStreak} wins</span>
         </div>
@@ -179,18 +268,23 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
         {recentMatches.length === 0 ? (
           <p className="text-xs text-zinc-500 italic">No recent match history recorded.</p>
         ) : (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
             {recentMatches.map((m, idx) => (
               <div
                 key={idx}
-                className="flex flex-col items-center justify-center p-2 rounded-2xl bg-zinc-950 border border-zinc-800 min-w-12 shadow-inner"
-                title={`Match ${m.friendly_id} on ${formatDateStr(m.match_date)}: Rank ${m.position} (+${m.points_awarded} pts)`}
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-zinc-950 border border-zinc-800 min-w-16 shadow-inner"
+                title={`Match ${m.friendly_id} on ${formatDateStr(m.match_date)}: Rank ${m.position} (+${m.points_awarded} pts) | Kills: ${m.kills || 0}, Deaths: ${m.deaths || 0}`}
               >
                 <span className="text-xl">
                   {m.position === 1 ? '🥇' : m.position === 2 ? '🥈' : m.position === 3 ? '🥉' : '4️⃣'}
                 </span>
-                <span className="text-[10px] font-black text-amber-400 mt-0.5">
+                <span className="text-[11px] font-black text-amber-400 mt-0.5">
                   +{m.points_awarded}
+                </span>
+                <span className="text-[9px] font-bold text-zinc-400 mt-0.5 flex items-center gap-1">
+                  <span className="text-rose-400 font-extrabold">⚔️{m.kills || 0}</span>
+                  <span className="text-zinc-500">/</span>
+                  <span className="text-zinc-300 font-extrabold">💀{m.deaths || 0}</span>
                 </span>
               </div>
             ))}
@@ -237,14 +331,14 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
       <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl space-y-4">
         <h3 className="text-xs font-extrabold text-zinc-100 uppercase tracking-wider flex items-center space-x-2">
           <BarChart2 className="w-4 h-4 text-amber-400" />
-          <span>Performance by Game Size (Normalized Scoring Context)</span>
+          <span>Performance & Combat by Game Size</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {([4, 3, 2] as const).map((size) => {
             const st = performanceBySize[size];
             return (
-              <div key={size} className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-2">
+              <div key={size} className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-2.5">
                 <div className="flex items-center justify-between font-extrabold text-xs text-zinc-100 pb-2 border-b border-zinc-800">
                   <span>{size}-Player Games</span>
                   <span className="text-amber-400">{st.matches} Matches</span>
@@ -258,6 +352,14 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
                   <div>
                     <span className="text-zinc-500 text-[10px] font-bold block">Avg Score</span>
                     <span className="font-black text-amber-400">{st.avg_score} pts</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 text-[10px] font-bold block">Combat Kills</span>
+                    <span className="font-bold text-rose-400">⚔️ {st.kills || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 text-[10px] font-bold block">Deaths</span>
+                    <span className="font-bold text-zinc-400">💀 {st.deaths || 0}</span>
                   </div>
                 </div>
               </div>
@@ -284,6 +386,7 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
                   <th className="py-2.5 px-3 text-center">Matches</th>
                   <th className="py-2.5 px-3 text-center">Wins</th>
                   <th className="py-2.5 px-3 text-center">Win %</th>
+                  <th className="py-2.5 px-3 text-center">Combat (K/D)</th>
                   <th className="py-2.5 px-3 text-right">Avg Score</th>
                 </tr>
               </thead>
@@ -294,6 +397,11 @@ export const PlayerProfile: React.FC<PlayerProfileProps> = ({ playerId, onBack }
                     <td className="py-3 px-3 text-center font-bold">{m.matches}</td>
                     <td className="py-3 px-3 text-center font-bold text-emerald-400">{m.wins}</td>
                     <td className="py-3 px-3 text-center">{m.win_pct}%</td>
+                    <td className="py-3 px-3 text-center">
+                      <span className="font-bold text-rose-400">⚔️ {m.kills || 0}</span>
+                      <span className="text-zinc-600 mx-1">/</span>
+                      <span className="font-bold text-zinc-400">💀 {m.deaths || 0}</span>
+                    </td>
                     <td className="py-3 px-3 text-right font-black text-amber-400">{m.average_score.toFixed(2)}</td>
                   </tr>
                 ))}

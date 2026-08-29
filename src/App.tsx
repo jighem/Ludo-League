@@ -43,6 +43,7 @@ function MainApp() {
   const [isNewMatchOpen, setIsNewMatchOpen] = useState(false);
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Dark Mode preference
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -174,11 +175,20 @@ function MainApp() {
         setActiveTab={setActiveTab}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
       />
 
       {/* Main Container Layout */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row p-4 sm:p-6 gap-6">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row p-3 sm:p-6 gap-4 sm:gap-6">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileMenuOpen(false);
+          }}
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
+        />
 
         <main className="flex-1 min-w-0">
           {renderActiveTab()}

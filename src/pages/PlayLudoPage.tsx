@@ -560,11 +560,11 @@ export const PlayLudoPage: React.FC<{
       isRollingRef.current = false;
 
       // 6. Sequence Step 5: Ludo Rules Engine processes rules based on the rolled value
-      // Check 3 consecutive sixes rule
+      // Check 4 consecutive sixes rule
       let newConsecutiveSixes = rolled === 6 ? currentPlayer.consecutiveSixes + 1 : 0;
-      if (newConsecutiveSixes === 3) {
-        logEvent(`⚠️ ${currentPlayer.name} rolled three 6s in a row! Turn skipped.`);
-        setActiveTurnNotice(`Three consecutive 6s! Turn forfeited.`);
+      if (newConsecutiveSixes === 4) {
+        logEvent(`⚠️ ${currentPlayer.name} rolled four 6s in a row! Turn skipped.`);
+        setActiveTurnNotice(`Four consecutive 6s! Turn forfeited.`);
         
         // Reset player consecutive sixes and pass turn
         const updatedPlayers = playersRef.current.map((p) =>
@@ -1525,7 +1525,7 @@ export const PlayLudoPage: React.FC<{
                     <span>Roll 6 to Release</span>
                   </div>
                   <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-snug">
-                    Tokens start in the Yard. Rolling a <strong>6</strong> releases 1 token and awards a <strong>bonus roll</strong>. 3 consecutive 6s forfeit the turn.
+                    Tokens start in the Yard. Rolling a <strong>6</strong> releases 1 token and awards a <strong>bonus roll</strong>. 4 consecutive 6s forfeit the turn.
                   </p>
                 </div>
 

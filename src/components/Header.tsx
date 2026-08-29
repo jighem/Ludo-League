@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
-import { Trophy, Plus, LogIn, LogOut, Sun, Moon, ChevronDown, Check, ShieldCheck, Flame, Crown, Gamepad2 } from 'lucide-react';
+import { Plus, LogIn, LogOut, Sun, Moon, ChevronDown, Check, Crown, Gamepad2, Menu } from 'lucide-react';
 
 interface HeaderProps {
   appName: string;
@@ -11,6 +11,7 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   darkMode: boolean;
   setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   darkMode,
-  setDarkMode
+  setDarkMode,
+  onToggleMobileMenu
 }) => {
   const { user, logout } = useAuth();
   const { leagues, activeLeague, activeLeagueId, setActiveLeagueId } = useLeague();
@@ -29,13 +31,25 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/85 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/80 shadow-xs dark:shadow-lg transition-colors">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-4">
           
-          {/* Left: Brand & League Selector */}
-          <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0">
+          {/* Left: Mobile Menu Toggle, Brand & League Selector */}
+          <div className="flex items-center space-x-1.5 sm:space-x-3 min-w-0">
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              id="btn-mobile-sidebar-toggle"
+              type="button"
+              onClick={onToggleMobileMenu}
+              className="md:hidden p-1.5 sm:p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
+              title="Open Navigation Menu"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5 text-amber-500" />
+            </button>
+
             {/* Ludo Distinctive Icon / Favicon Logo */}
-            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-zinc-900 dark:bg-zinc-950 p-1 border border-amber-500/40 flex items-center justify-center shadow-md shadow-amber-500/10">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-2xl bg-zinc-900 dark:bg-zinc-950 p-1 border border-amber-500/40 flex items-center justify-center shadow-md shadow-amber-500/10">
               <svg className="w-full h-full" viewBox="0 0 64 64" fill="none">
                 <rect width="64" height="64" rx="14" fill="#09090B"/>
                 <rect x="2" y="2" width="60" height="60" rx="12" fill="#18181B" stroke="#27272A" strokeWidth="2"/>
@@ -52,24 +66,24 @@ export const Header: React.FC<HeaderProps> = ({
               </svg>
             </div>
 
-            {/* App Brand Name */}
-            <div className="flex flex-col min-w-0">
-              <span className="font-black text-sm sm:text-base md:text-lg tracking-tight bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 dark:from-zinc-100 dark:via-amber-300 dark:to-orange-400 bg-clip-text text-transparent truncate">
+            {/* App Brand Name (Responsive: hidden on very narrow screens) */}
+            <div className="hidden min-[420px]:flex flex-col min-w-0">
+              <span className="font-black text-xs sm:text-base md:text-lg tracking-tight bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 dark:from-zinc-100 dark:via-amber-300 dark:to-orange-400 bg-clip-text text-transparent truncate max-w-[90px] sm:max-w-none">
                 {appName || 'Ludo League Master'}
               </span>
             </div>
 
             {/* Global League Switcher Pill */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 id="btn-league-dropdown"
                 onClick={() => setLeagueMenuOpen(!leagueMenuOpen)}
-                className="flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs max-w-[140px] sm:max-w-[220px]"
+                className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 font-bold text-[11px] sm:text-xs transition-all cursor-pointer shadow-xs max-w-[105px] xs:max-w-[130px] sm:max-w-[200px]"
                 title="Switch Active Ludo League"
               >
-                <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 shrink-0" />
                 <span className="truncate font-black">{activeLeague?.name || 'AC Ludo League 1'}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <ChevronDown className="w-3 h-3 text-amber-500 shrink-0" />
               </button>
 
               {/* League Selector Dropdown */}
@@ -125,21 +139,21 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right: Quick Actions, Theme Toggle & Auth */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
             {/* Play Ludo Button */}
             <button
               id="btn-play-ludo-header"
               onClick={() => setActiveTab('play-ludo')}
-              className={`inline-flex items-center space-x-1.5 px-3 sm:px-3.5 py-2 text-xs font-black rounded-xl border transition-all cursor-pointer shrink-0 ${
+              className={`inline-flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black rounded-xl border transition-all cursor-pointer shrink-0 ${
                 activeTab === 'play-ludo'
                   ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
               }`}
               title="Play Live Ludo Game"
             >
-              <Gamepad2 className="w-4 h-4 text-amber-500 shrink-0" />
-              <span className="hidden sm:inline">Play Ludo</span>
-              <span className="sm:hidden">Play</span>
+              <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+              <span className="hidden min-[480px]:inline">Play Ludo</span>
+              <span className="min-[480px]:hidden">Play</span>
             </button>
 
             {/* Record Match Button */}
@@ -147,11 +161,12 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="btn-record-match-header"
                 onClick={onOpenNewMatch}
-                className="inline-flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 text-xs font-extrabold text-zinc-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 rounded-xl shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-extrabold text-zinc-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 rounded-xl shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                title="Record a match"
               >
-                <Plus className="w-4 h-4 stroke-[3]" />
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] shrink-0" />
                 <span className="hidden sm:inline">Record Match</span>
-                <span className="sm:hidden">Match</span>
+                <span className="sm:hidden hidden xs:inline">Match</span>
               </button>
             )}
 
@@ -159,21 +174,22 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="btn-darkmode-toggle"
               onClick={() => setDarkMode((prev) => !prev)}
-              className="p-2 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer border border-zinc-200 dark:border-transparent shrink-0"
+              className="p-1.5 sm:p-2 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer border border-zinc-200 dark:border-transparent shrink-0"
               title="Toggle Dark/Light Mode"
+              aria-label="Toggle Dark/Light Mode"
             >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-zinc-700" />}
+              {darkMode ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-700" />}
             </button>
 
             {/* User Profile / Login */}
             {user ? (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   id="btn-user-menu"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-2 p-1.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-800 cursor-pointer"
+                  className="flex items-center space-x-1.5 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-800 cursor-pointer"
                 >
-                  <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs border border-amber-500/30">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-[11px] sm:text-xs border border-amber-500/30 shrink-0">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="hidden md:block text-left pr-1">
@@ -209,10 +225,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="btn-open-login"
                 onClick={onOpenLogin}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer shrink-0"
               >
-                <LogIn className="w-3.5 h-3.5 text-amber-500" />
-                <span>Sign In</span>
+                <LogIn className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="hidden min-[380px]:inline">Sign In</span>
               </button>
             )}
           </div>

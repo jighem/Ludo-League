@@ -86,7 +86,7 @@ export const DiceFairnessModal: React.FC<DiceFairnessModalProps> = ({ isOpen, on
                 <strong>No Player Favoring / Handicaps:</strong> Dice values are never influenced by player ranking, token positions, AI difficulty, or need for a 6.
               </li>
               <li>
-                <strong>Clean Separation of Concerns:</strong> The <em>Dice Engine</em> strictly generates numbers 1–6. The <em>Ludo Rules Engine</em> evaluates game mechanics (bonus rolls, 3-consecutive-sixes skip, legal moves) afterwards.
+                <strong>Clean Separation of Concerns:</strong> The <em>Dice Engine</em> strictly generates numbers 1–6. The <em>Ludo Rules Engine</em> evaluates game mechanics (bonus rolls, 4-consecutive-sixes skip, legal moves) afterwards.
               </li>
               <li>
                 <strong>Zero Modulo Bias:</strong> Uses 32-bit cryptographically secure random integers with rejection sampling.

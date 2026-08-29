@@ -175,7 +175,7 @@ export const LudoRulesModal: React.FC<LudoRulesModalProps> = ({ isOpen, onClose 
                 <li className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-amber-900 dark:text-amber-200">Three 6s Rule:</strong> Rolling three consecutive 6s automatically forfeits the third roll to prevent infinite rolling streaks and maintain competitive fairness.
+                    <strong className="text-amber-900 dark:text-amber-200">Four 6s Rule:</strong> Rolling four consecutive 6s automatically forfeits the fourth roll to prevent infinite rolling streaks and maintain competitive fairness.
                   </div>
                 </li>
               </ul>

@@ -110,9 +110,32 @@ export const PlayLudoPage: React.FC<{
   const [walkingTokenKey, setWalkingTokenKey] = useState<string | null>(null);
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [activeTurnNotice, setActiveTurnNotice] = useState<string>('Game started! Red rolls first.');
+  const [killLogs, setKillLogs] = useState<Array<{
+    killer_id?: number;
+    killer_name: string;
+    killer_color: string;
+    victim_id?: number;
+    victim_name: string;
+    victim_color: string;
+    square: number;
+    turn: number;
+    timestamp: string;
+  }>>([]);
+  const killLogsRef = useRef<Array<{
+    killer_id?: number;
+    killer_name: string;
+    killer_color: string;
+    victim_id?: number;
+    victim_name: string;
+    victim_color: string;
+    square: number;
+    turn: number;
+    timestamp: string;
+  }>>([]);
 
   // Game End & League Auto-Record State
   const [rankings, setRankings] = useState<Array<{ rank: number; player: LudoPlayer }>>([]);
+  const rankingsRef = useRef<Array<{ rank: number; player: LudoPlayer }>>([]);
   const [isSubmittingMatch, setIsSubmittingMatch] = useState<boolean>(false);
   const [matchSubmittedSuccess, setMatchSubmittedSuccess] = useState<{ friendlyId: string } | null>(null);
   const [submissionError, setSubmissionError] = useState<string>('');
@@ -142,6 +165,7 @@ export const PlayLudoPage: React.FC<{
   const walkingTokenKeyRef = useRef<string | null>(walkingTokenKey);
   const diceValueRef = useRef<number | null>(diceValue);
   const gameStateRef = useRef<'setup' | 'playing' | 'gameover'>(gameState);
+  const gameLogsRef = useRef<string[]>(gameLogs);
 
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { turnColorRef.current = turnColor; }, [turnColor]);
@@ -150,6 +174,7 @@ export const PlayLudoPage: React.FC<{
   useEffect(() => { walkingTokenKeyRef.current = walkingTokenKey; }, [walkingTokenKey]);
   useEffect(() => { diceValueRef.current = diceValue; }, [diceValue]);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  useEffect(() => { gameLogsRef.current = gameLogs; }, [gameLogs]);
 
   // Clear all pending timeouts
   const clearAllTimers = () => {
@@ -193,6 +218,7 @@ export const PlayLudoPage: React.FC<{
         setGameLogs(saved.gameLogs || ['Match automatically resumed from cache.']);
         setActiveTurnNotice(saved.activeTurnNotice || 'Match resumed from offline storage.');
         setRankings(saved.rankings || []);
+        rankingsRef.current = saved.rankings || [];
         setGameState('playing');
         gameStateRef.current = 'playing';
         setResumedFromCache(true);
@@ -471,6 +497,9 @@ export const PlayLudoPage: React.FC<{
     setWaitingForMove(false);
     waitingForMoveRef.current = false;
     setRankings([]);
+    rankingsRef.current = [];
+    setKillLogs([]);
+    killLogsRef.current = [];
     setMatchSubmittedSuccess(null);
     setSubmissionError('');
     setGameLogs([`Match began in ${gameMode === 'classic' ? 'Classic' : 'Quick'} mode!`]);
@@ -790,6 +819,23 @@ export const PlayLudoPage: React.FC<{
                 victimsCount++;
                 totalCapturedTokens++;
                 logEvent(`💥 ${player.name} knocked out ${otherPlayer.name}'s token! (+5 pts / -5 pts)`);
+
+                // Record structured kill event
+                const killRecord = {
+                  killer_id: player.leaguePlayerId,
+                  killer_name: player.name,
+                  killer_color: player.color,
+                  victim_id: otherPlayer.leaguePlayerId,
+                  victim_name: otherPlayer.name,
+                  victim_color: otherPlayer.color,
+                  square: landingTrackIdx,
+                  turn: (gameLogsRef?.current?.length || 0) + 1,
+                  timestamp: new Date().toLocaleTimeString()
+                };
+                const nextKills = [...killLogsRef.current, killRecord];
+                killLogsRef.current = nextKills;
+                setKillLogs(nextKills);
+
                 return { ...ot, step: -1 }; // Sent back to yard
               }
             }
@@ -832,14 +878,16 @@ export const PlayLudoPage: React.FC<{
         : tokensHome >= 1; // Quick mode
 
     if (isFinished && !player.hasFinished) {
-      const nextRank = rankings.length + 1;
+      const currentRankings = rankingsRef.current;
+      const nextRank = currentRankings.length + 1;
       const finishedPlayer = { ...updatedCurrentPlayer, hasFinished: true, rank: nextRank };
       
       updatedPlayers = updatedPlayers.map((p) =>
         p.color === player.color ? finishedPlayer : p
       );
 
-      let newRankings = [...rankings, { rank: nextRank, player: finishedPlayer }];
+      let newRankings = [...currentRankings, { rank: nextRank, player: finishedPlayer }];
+      rankingsRef.current = newRankings;
       logEvent(`🏆 ${player.name} FINISHED in Rank ${nextRank}!`);
       
       confetti({
@@ -870,7 +918,7 @@ export const PlayLudoPage: React.FC<{
           return (b.kills || 0) - (a.kills || 0);
         });
 
-        // Assign ranks to all remaining unfinished players
+        // Assign unique ranks to all remaining unfinished players
         sortedRemaining.forEach((remPlayer) => {
           const assignedRank = newRankings.length + 1;
           const finalizedPlayer = {
@@ -884,6 +932,7 @@ export const PlayLudoPage: React.FC<{
           );
         });
 
+        rankingsRef.current = newRankings;
         setRankings(newRankings);
         setPlayers(updatedPlayers);
         playersRef.current = updatedPlayers;
@@ -897,6 +946,7 @@ export const PlayLudoPage: React.FC<{
         return;
       }
 
+      rankingsRef.current = newRankings;
       setRankings(newRankings);
     }
 
@@ -1014,6 +1064,8 @@ export const PlayLudoPage: React.FC<{
         player_count: playerCount,
         league_id: targetLeagueId,
         notes: `Ludo Play Match (${gameMode === 'classic' ? 'Classic' : 'Quick'} Mode)`,
+        action_logs: gameLogsRef.current || gameLogs,
+        kill_logs: killLogsRef.current || killLogs,
         results
       };
 
@@ -1797,7 +1849,29 @@ export const PlayLudoPage: React.FC<{
             </p>
           </div>
 
-          {/* Podium / Standings Breakdown */}
+          {/* Winner Showcase Banner */}
+          {rankings.length > 0 && rankings[0] && (
+            <div className="p-4 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border-2 border-amber-500/50 rounded-2xl max-w-lg mx-auto flex items-center justify-center gap-3 shadow-lg shadow-amber-500/10">
+              <span className="text-3xl animate-bounce">🏆</span>
+              <div className="text-left">
+                <div className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  1st Place Champion
+                </div>
+                <div className="text-base sm:text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2">
+                  <span>{rankings[0].player.name || COLOR_CONFIG[rankings[0].player.color]?.name || 'Champion'}</span>
+                  <span
+                    className="w-3 h-3 rounded-full inline-block shadow-sm"
+                    style={{ background: COLOR_CONFIG[rankings[0].player.color]?.bgHex }}
+                  />
+                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                    ({COLOR_CONFIG[rankings[0].player.color]?.name} Seat)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Podium / Standings Breakdown for ALL players */}
           <div className="space-y-2.5 max-w-lg mx-auto text-left">
             {rankings.map((item) => {
               const basePts = currentPoints[item.rank] || 0;
@@ -1805,11 +1879,12 @@ export const PlayLudoPage: React.FC<{
               const deaths = item.player.deaths || 0;
               const combatPts = (kills * 5) - (deaths * 5);
               const totalPts = Number((basePts + combatPts).toFixed(2));
-              const colorCfg = COLOR_CONFIG[item.player.color];
+              const colorCfg = COLOR_CONFIG[item.player.color] || { name: 'Player', bgHex: '#fbbf24' };
+              const playerName = item.player.name || colorCfg.name || 'Player';
 
               return (
                 <div
-                  key={item.rank}
+                  key={`${item.player.color}-${item.rank}`}
                   className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
                     item.rank === 1
                       ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-400 shadow-md ring-2 ring-amber-400/20'
@@ -1822,7 +1897,7 @@ export const PlayLudoPage: React.FC<{
                     </span>
                     <div>
                       <div className="text-sm font-black text-zinc-900 dark:text-white flex items-center gap-2">
-                        <span>{item.player.name}</span>
+                        <span>{playerName}</span>
                         <span
                           className="w-2.5 h-2.5 rounded-full inline-block"
                           style={{ background: colorCfg.bgHex }}

@@ -26,7 +26,14 @@ import {
   ChevronUp,
   RotateCcw,
   Crown,
-  RefreshCw
+  RefreshCw,
+  Swords,
+  Skull,
+  Scroll,
+  FileText,
+  Crosshair,
+  X,
+  Flame
 } from 'lucide-react';
 
 interface MatchHistoryProps {
@@ -60,6 +67,8 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
   // Modals
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [deletingMatchId, setDeletingMatchId] = useState<number | null>(null);
+  const [viewingLogsMatch, setViewingLogsMatch] = useState<Match | null>(null);
+  const [logsTab, setLogsTab] = useState<'kills' | 'actions'>('kills');
   const [deleteReason, setDeleteReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -519,10 +528,8 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   <th className="py-3 px-3 text-amber-700 dark:text-amber-500 whitespace-nowrap">🥉 3rd Place</th>
                   <th className="py-3 px-3 text-zinc-400 whitespace-nowrap">4️⃣ 4th Place</th>
                   <th className="py-3 px-3 text-center whitespace-nowrap">Total Pts</th>
-                  <th className="py-3 px-3 whitespace-nowrap">Notes</th>
-                  {(user?.role === 'admin' || user?.role === 'operator') && (
-                    <th className="py-3 px-3 text-center whitespace-nowrap">Actions</th>
-                  )}
+                  <th className="py-3 px-3 whitespace-nowrap">Notes & Logs</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-800 dark:text-zinc-300">
@@ -532,6 +539,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   const p3 = m.results?.find((r) => r.position === 3);
                   const p4 = m.results?.find((r) => r.position === 4);
                   const matchTotal = m.results?.reduce((acc, curr) => acc + Number(curr.points_awarded), 0) || 0;
+                  const totalKills = m.results?.reduce((acc, curr) => acc + (Number(curr.kills) || 0), 0) || 0;
                   const isEditable = canEditMatch(m);
 
                   return (
@@ -541,7 +549,14 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                     >
                       {/* Match Friendly ID */}
                       <td className="py-3 px-3.5 whitespace-nowrap font-mono font-black text-amber-600 dark:text-amber-400">
-                        {m.friendly_id}
+                        <div className="flex items-center space-x-1.5">
+                          <span>{m.friendly_id}</span>
+                          {totalKills > 0 && (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold text-[9px] border border-rose-200 dark:border-rose-800/40" title={`${totalKills} eliminations recorded`}>
+                              ⚔️ {totalKills}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Date & Time */}
@@ -570,6 +585,11 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                             <span className="font-black text-emerald-600 dark:text-emerald-400 text-[11px] bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-300/40 dark:border-emerald-800/40">
                               +{p1.points_awarded} pts
                             </span>
+                            {(p1.kills > 0 || p1.deaths > 0) && (
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 rounded" title={`${p1.kills} kills, ${p1.deaths} deaths`}>
+                                ⚔️{p1.kills} 💀{p1.deaths}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-zinc-400">—</span>
@@ -589,6 +609,11 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                             <span className="font-bold text-zinc-600 dark:text-zinc-400 text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
                               +{p2.points_awarded} pts
                             </span>
+                            {(p2.kills > 0 || p2.deaths > 0) && (
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 rounded" title={`${p2.kills} kills, ${p2.deaths} deaths`}>
+                                ⚔️{p2.kills} 💀{p2.deaths}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-zinc-400">—</span>
@@ -608,6 +633,11 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                             <span className="font-bold text-amber-700 dark:text-amber-500 text-[11px] bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-300/30 dark:border-amber-800/30">
                               +{p3.points_awarded} pts
                             </span>
+                            {(p3.kills > 0 || p3.deaths > 0) && (
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 rounded" title={`${p3.kills} kills, ${p3.deaths} deaths`}>
+                                ⚔️{p3.kills} 💀{p3.deaths}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-zinc-400">—</span>
@@ -627,6 +657,11 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                             <span className="font-medium text-zinc-400 text-[11px] bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
                               +{p4.points_awarded} pts
                             </span>
+                            {(p4.kills > 0 || p4.deaths > 0) && (
+                              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 rounded" title={`${p4.kills} kills, ${p4.deaths} deaths`}>
+                                ⚔️{p4.kills} 💀{p4.deaths}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-zinc-400">—</span>
@@ -640,44 +675,68 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                         </span>
                       </td>
 
-                      {/* Notes / Recorder */}
+                      {/* Notes & Logs */}
                       <td className="py-3 px-3 text-zinc-500 dark:text-zinc-400 text-[11px] max-w-[160px] truncate">
-                        {m.notes ? m.notes : m.created_by_name ? `By ${m.created_by_name}` : '—'}
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            onClick={() => {
+                              setViewingLogsMatch(m);
+                              setLogsTab('kills');
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-300/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-bold text-[10px] cursor-pointer flex items-center space-x-1"
+                            title="View Combat Log & Match Timeline"
+                          >
+                            <Scroll className="w-3 h-3" />
+                            <span>Log</span>
+                          </button>
+                          <span className="truncate">{m.notes ? m.notes : m.created_by_name ? `By ${m.created_by_name}` : '—'}</span>
+                        </div>
                       </td>
 
                       {/* Actions */}
-                      {(user?.role === 'admin' || user?.role === 'operator') && (
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center space-x-1">
-                            {isEditable ? (
-                              <button
-                                onClick={() => setEditingMatch(m)}
-                                className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
-                                title={user?.role === 'admin' ? 'Edit Match (Admin)' : 'Edit Match (Your Recorded Entry)'}
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                            ) : user?.role === 'operator' ? (
-                              <span
-                                className="p-1.5 text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
-                                title={`Recorded by ${m.created_by_name || 'another operator'} — Operators can only edit entries created by themselves`}
-                              >
-                                <Lock className="w-3.5 h-3.5" />
-                              </span>
-                            ) : null}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center space-x-1">
+                          <button
+                            onClick={() => {
+                              setViewingLogsMatch(m);
+                              setLogsTab('kills');
+                            }}
+                            className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                            title="View Match Log Details"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
 
-                            {user?.role === 'admin' && (
-                              <button
-                                onClick={() => setDeletingMatchId(m.id)}
-                                className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
-                                title="Delete Match (Admin Only)"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+                          {isEditable && (
+                            <button
+                              onClick={() => setEditingMatch(m)}
+                              className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                              title={user?.role === 'admin' ? 'Edit Match (Admin)' : 'Edit Match (Your Recorded Entry)'}
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
+                          {!isEditable && user?.role === 'operator' && (
+                            <span
+                              className="p-1.5 text-zinc-300 dark:text-zinc-700 cursor-not-allowed"
+                              title={`Recorded by ${m.created_by_name || 'another operator'} — Operators can only edit entries created by themselves`}
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={() => setDeletingMatchId(m.id)}
+                              className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Match (Admin Only)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -690,6 +749,8 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
         <div className="space-y-3">
           {matches.map((m) => {
             const isEditable = canEditMatch(m);
+            const totalKills = m.results?.reduce((acc, curr) => acc + (Number(curr.kills) || 0), 0) || 0;
+
             return (
               <div
                 key={m.id}
@@ -708,9 +769,26 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                     <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold text-[10px]">
                       {m.player_count} Players
                     </span>
+                    {totalKills > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 font-bold text-[10px] border border-rose-200 dark:border-rose-800/40 flex items-center space-x-1">
+                        <Swords className="w-3 h-3" />
+                        <span>{totalKills} Kills</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setViewingLogsMatch(m);
+                        setLogsTab('kills');
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-bold text-xs flex items-center space-x-1 cursor-pointer transition-colors border border-amber-300/40"
+                    >
+                      <Scroll className="w-3.5 h-3.5" />
+                      <span>Match Log</span>
+                    </button>
+
                     {m.created_by_name && (
                       <span className="text-[10px] text-zinc-500 dark:text-zinc-400">Recorded by {m.created_by_name}</span>
                     )}
@@ -748,43 +826,50 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   </div>
                 </div>
 
-              {/* Match Results Row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {m.results?.map((res) => (
-                  <div
-                    key={res.id}
-                    onClick={() => onSelectPlayer(res.player_id)}
-                    className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-amber-400 transition-all flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <span className="font-black text-sm shrink-0">
-                        {res.position === 1 ? '🥇' : res.position === 2 ? '🥈' : res.position === 3 ? '🥉' : '4️⃣'}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="font-bold text-xs text-zinc-900 dark:text-white truncate">
-                          {res.player_name}
+                {/* Match Results Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {m.results?.map((res) => (
+                    <div
+                      key={res.id}
+                      onClick={() => onSelectPlayer(res.player_id)}
+                      className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:border-amber-400 transition-all flex flex-col justify-between space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5 min-w-0">
+                          <span className="font-black text-sm shrink-0">
+                            {res.position === 1 ? '🥇' : res.position === 2 ? '🥈' : res.position === 3 ? '🥉' : '4️⃣'}
+                          </span>
+                          <span className="font-bold text-xs text-zinc-900 dark:text-white truncate">
+                            {res.player_name}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400">Rank {res.position}</div>
+                        <span className="font-black text-amber-600 dark:text-amber-400 text-xs shrink-0">
+                          +{res.points_awarded} pts
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200/50 dark:border-zinc-700/40">
+                        <span>Rank {res.position}</span>
+                        {(res.kills > 0 || res.deaths > 0) && (
+                          <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                            ⚔️ {res.kills || 0} • 💀 {res.deaths || 0}
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    <div className="font-black text-amber-600 dark:text-amber-400 text-xs shrink-0 pl-1">
-                      +{res.points_awarded} pts
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {m.notes && (
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 italic bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-xl">
-                  Note: {m.notes}
+                  ))}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )}
+
+                {m.notes && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 italic bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-xl">
+                    Note: {m.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Pagination Bar */}
       {totalPages > 1 && (
@@ -866,6 +951,171 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
           onClose={() => setEditingMatch(null)}
           onMatchUpdated={fetchMatches}
         />
+      )}
+
+      {/* Match Combat & Action Log Modal */}
+      {viewingLogsMatch && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl max-w-2xl w-full border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/30">
+                  <Scroll className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-base font-black text-zinc-900 dark:text-white">
+                      Match Record {viewingLogsMatch.friendly_id}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-bold text-[10px]">
+                      {viewingLogsMatch.player_count} Players
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    📅 {formatDateStr(viewingLogsMatch.match_date)} at {viewingLogsMatch.match_time}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setViewingLogsMatch(null)}
+                className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Results Snapshot Bar */}
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {viewingLogsMatch.results?.map((r) => (
+                <div key={r.id} className="p-2 rounded-xl bg-white dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 flex flex-col justify-between">
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <span>{r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : '4️⃣'}</span>
+                    <span className="font-bold text-zinc-900 dark:text-white truncate">{r.player_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                    <span className="font-black text-amber-600 dark:text-amber-400">+{r.points_awarded} pts</span>
+                    <span>⚔️ {r.kills || 0} • 💀 {r.deaths || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tab Selection */}
+            <div className="flex border-b border-zinc-200 dark:border-zinc-800 px-4 pt-3 gap-2 bg-zinc-50/50 dark:bg-zinc-900/30">
+              <button
+                onClick={() => setLogsTab('kills')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center space-x-1.5 border-b-2 transition-all cursor-pointer ${
+                  logsTab === 'kills'
+                    ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>Combat Knockouts ({viewingLogsMatch.kill_logs?.length || 0})</span>
+              </button>
+
+              <button
+                onClick={() => setLogsTab('actions')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center space-x-1.5 border-b-2 transition-all cursor-pointer ${
+                  logsTab === 'actions'
+                    ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Match Action Stream ({viewingLogsMatch.action_logs?.length || 0})</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {logsTab === 'kills' ? (
+                viewingLogsMatch.kill_logs && viewingLogsMatch.kill_logs.length > 0 ? (
+                  <div className="space-y-2">
+                    {viewingLogsMatch.kill_logs.map((k, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs hover:border-rose-300 dark:hover:border-rose-800/60 transition-colors"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-bold text-[10px] flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <div className="space-y-0.5">
+                            <div className="font-extrabold text-zinc-900 dark:text-white flex items-center space-x-1.5">
+                              <span className="text-amber-600 dark:text-amber-400">{k.killer_name}</span>
+                              <span className="text-rose-500 text-xs font-black">⚔️ ELIMINATED</span>
+                              <span className="text-zinc-600 dark:text-zinc-300">{k.victim_name}</span>
+                            </div>
+                            <div className="text-[10px] text-zinc-400 flex items-center space-x-2">
+                              {k.square !== undefined && <span>Track Square #{k.square}</span>}
+                              {k.turn !== undefined && <span>• Turn #{k.turn}</span>}
+                              {k.timestamp && <span>• {k.timestamp}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-black text-[10px] border border-emerald-300/30">
+                            +5 Combat Pts
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
+                      <Crosshair className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">No Knockout Events Recorded</p>
+                    <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                      All live matches played in the Ludo Arena or recorded with combat details automatically track pawn knockouts here.
+                    </p>
+                  </div>
+                )
+              ) : (
+                viewingLogsMatch.action_logs && viewingLogsMatch.action_logs.length > 0 ? (
+                  <div className="space-y-1.5 font-mono text-[11px]">
+                    {viewingLogsMatch.action_logs.map((log, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-800/60 text-zinc-700 dark:text-zinc-300 flex items-center space-x-2"
+                      >
+                        <span className="text-[10px] text-zinc-400 select-none">[{idx + 1}]</span>
+                        <span>{log}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">No Action Stream Recorded</p>
+                    <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
+                      Matches recorded via the Ludo Arena interface include complete turn-by-turn game rolls and pawn movements.
+                    </p>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-900/80 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div className="text-[11px] text-zinc-400 font-medium">
+                {viewingLogsMatch.notes ? `Note: ${viewingLogsMatch.notes}` : 'Ludo League Master Official Match'}
+              </div>
+              <button
+                onClick={() => setViewingLogsMatch(null)}
+                className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+              >
+                Close Log
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

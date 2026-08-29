@@ -678,22 +678,68 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
       return res.json({ month: monthStr, awards: null, message: 'No matches recorded for this month.' });
     }
 
-    // 1. Champion: Highest qualifying average
+    // 1. Overall Champion: Highest qualifying average
     const champions = leaderboard.filter((p) => p.is_champion);
 
-    // 2. Most Wins
+    // 2. Killer of the Month (Apex Predator - Most Kills)
+    const sortedByKills = [...leaderboard].sort((a, b) => b.total_kills - a.total_kills || b.net_combat_points - a.net_combat_points || b.total_matches - a.total_matches);
+    const killerWinner = sortedByKills[0] && sortedByKills[0].total_kills > 0 ? sortedByKills[0] : null;
+
+    // Single match kill record for the month
+    let singleMatchKillSql = `
+      SELECT mr.kills, mr.deaths, mr.match_id, mr.position, mr.points_awarded,
+             p.id as player_id, p.full_name, p.nickname, p.profile_photo,
+             m.friendly_id, m.match_date
+      FROM match_results mr
+      JOIN matches m ON mr.match_id = m.id
+      JOIN players p ON mr.player_id = p.id
+      WHERE m.is_deleted = 0 AND m.match_date LIKE ?
+    `;
+    const singleMatchKillParams: any[] = [`${monthStr}%`];
+    if (leagueId && !isNaN(leagueId)) {
+      singleMatchKillSql += ' AND m.league_id = ?';
+      singleMatchKillParams.push(leagueId);
+    }
+    singleMatchKillSql += ' ORDER BY mr.kills DESC, mr.points_awarded DESC LIMIT 1';
+    const singleMatchKillRows = await query<any>(singleMatchKillSql, singleMatchKillParams);
+    const topSingleMatchKill = singleMatchKillRows[0] && singleMatchKillRows[0].kills > 0 ? singleMatchKillRows[0] : null;
+
+    // 3. Most Wins of the Month
     const sortedByWins = [...leaderboard].sort((a, b) => b.wins_1st - a.wins_1st || b.total_matches - a.total_matches);
-    const mostWinsWinner = sortedByWins[0];
+    const mostWinsWinner = sortedByWins[0] && sortedByWins[0].wins_1st > 0 ? sortedByWins[0] : null;
 
-    // 3. Best Win Rate (among qualified players)
+    // 4. Best Podium Rate (Top 3 finish %) among active participants
+    const minPodiumMatches = Math.max(2, Math.min(4, Math.ceil(minM / 2)));
+    const activeForPodium = leaderboard.filter((p) => p.total_matches >= minPodiumMatches);
+    const sortedByPodium = (activeForPodium.length > 0 ? activeForPodium : leaderboard)
+      .sort((a, b) => b.podium_pct - a.podium_pct || b.podium_finishes - a.podium_finishes || b.total_matches - a.total_matches);
+    const bestPodiumRateWinner = sortedByPodium[0];
+
+    // 5. Iron Wall / Survivor (Best K/D ratio or lowest deaths per match with min matches)
+    const activeForSurvivor = leaderboard.filter((p) => p.total_matches >= minPodiumMatches && p.total_kills > 0);
+    let survivorWinner = null;
+    if (activeForSurvivor.length > 0) {
+      const sortedByKd = [...activeForSurvivor].sort((a, b) => {
+        const kd_A = a.total_deaths === 0 ? a.total_kills * 2 : a.total_kills / a.total_deaths;
+        const kd_B = b.total_deaths === 0 ? b.total_kills * 2 : b.total_kills / b.total_deaths;
+        return kd_B - kd_A || a.total_deaths - b.total_deaths;
+      });
+      survivorWinner = sortedByKd[0];
+    }
+
+    // 6. Best Win Rate (among qualified players)
     const qualifiedByWinRate = leaderboard.filter((p) => p.is_qualified).sort((a, b) => b.win_pct - a.win_pct);
-    const bestWinRateWinner = qualifiedByWinRate[0] || sortedByWins[0];
+    const bestWinRateWinner = qualifiedByWinRate[0] || (mostWinsWinner || sortedByWins[0]);
 
-    // 4. Most Active
+    // 7. Most Active Grinder (Most matches played)
     const sortedByActivity = [...leaderboard].sort((a, b) => b.total_matches - a.total_matches);
     const mostActiveWinner = sortedByActivity[0];
 
-    // 5. Most Improved (vs previous month)
+    // 8. Total Points Leader / Dominator
+    const sortedByPoints = [...leaderboard].sort((a, b) => b.total_points - a.total_points);
+    const pointsLeaderWinner = sortedByPoints[0];
+
+    // 9. Most Improved (vs previous month)
     const prevDate = new Date(`${monthStr}-01`);
     prevDate.setMonth(prevDate.getMonth() - 1);
     const prevMonthStr = prevDate.toISOString().split('T')[0].substring(0, 7);
@@ -705,7 +751,7 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
 
     leaderboard.forEach((curr) => {
       const prev = prevLeaderboard.find((p) => p.player_id === curr.player_id);
-      if (prev && curr.total_matches >= Math.min(4, minM) && prev.total_matches >= Math.min(4, minM)) {
+      if (prev && curr.total_matches >= Math.min(3, minM) && prev.total_matches >= Math.min(3, minM)) {
         const diff = curr.average_score - prev.average_score;
         if (diff > maxImprovement && diff > 0) {
           maxImprovement = diff;
@@ -719,7 +765,7 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
       }
     });
 
-    // 6. Most Consistent (Lowest variance/stddev among qualified players)
+    // 10. Most Consistent (Lowest variance/stddev among qualified players)
     const qualifiedPlayers = leaderboard.filter((p) => p.is_qualified);
     let mostConsistentWinner = null;
     let minStdDev = 999999;
@@ -758,9 +804,14 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
       month: monthStr,
       awards: {
         champions,
+        killerOfTheMonth: killerWinner,
+        topSingleMatchKill,
         mostWins: mostWinsWinner,
+        bestPodiumRate: bestPodiumRateWinner,
+        survivor: survivorWinner,
         bestWinRate: bestWinRateWinner,
         mostActive: mostActiveWinner,
+        pointsLeader: pointsLeaderWinner,
         mostImproved: mostImprovedWinner,
         mostConsistent: mostConsistentWinner
       }

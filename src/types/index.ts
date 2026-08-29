@@ -66,10 +66,83 @@ export interface Match {
   match_time: string;
   player_count: number;
   notes: string | null;
+  action_logs?: string | string[] | null;
+  kill_logs?: string | Array<{
+    killer_id?: number;
+    killer_name?: string;
+    killer_color?: string;
+    victim_id?: number;
+    victim_name?: string;
+    victim_color?: string;
+    square?: number;
+    turn?: number;
+    timestamp?: string;
+  }> | null;
   created_by: number | null;
   created_by_name?: string;
   results: MatchResult[];
   created_at: string;
+}
+
+export interface MonthlyAwardPlayer {
+  player_id: number;
+  full_name: string;
+  nickname: string | null;
+  profile_photo: string | null;
+  total_matches: number;
+  total_points: number;
+  average_score: number;
+  average_position: number;
+  wins_1st: number;
+  pos_2nd: number;
+  pos_3rd: number;
+  pos_4th: number;
+  last_place: number;
+  podium_finishes: number;
+  win_pct: number;
+  podium_pct: number;
+  is_qualified: boolean;
+  total_kills: number;
+  total_deaths: number;
+  net_combat_points: number;
+}
+
+export interface MonthlyAwardsData {
+  month: string;
+  awards: {
+    champions: MonthlyAwardPlayer[];
+    killerOfTheMonth: MonthlyAwardPlayer | null;
+    topSingleMatchKill?: {
+      kills: number;
+      deaths: number;
+      match_id: number;
+      position: number;
+      points_awarded: number;
+      player_id: number;
+      full_name: string;
+      nickname: string | null;
+      profile_photo: string | null;
+      friendly_id: string;
+      match_date: string;
+    } | null;
+    mostWins: MonthlyAwardPlayer | null;
+    bestPodiumRate: MonthlyAwardPlayer | null;
+    survivor: MonthlyAwardPlayer | null;
+    bestWinRate: MonthlyAwardPlayer | null;
+    mostActive: MonthlyAwardPlayer | null;
+    pointsLeader: MonthlyAwardPlayer | null;
+    mostImproved: {
+      player: MonthlyAwardPlayer;
+      prevAverage: number;
+      currAverage: number;
+      improvement: number;
+    } | null;
+    mostConsistent: {
+      player: MonthlyAwardPlayer;
+      stdDev: number;
+    } | null;
+  } | null;
+  message?: string;
 }
 
 export interface LeaderboardItem {

@@ -126,6 +126,17 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE match_results ADD COLUMN deaths INT NOT NULL DEFAULT 0 AFTER kills;`);
         }
 
+        // Check if action_logs and kill_logs columns exist on matches table
+        const [actCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'matches' AND COLUMN_NAME = 'action_logs';
+        `);
+        if (actCols.length === 0) {
+          console.log('Adding action_logs and kill_logs columns to MySQL matches table...');
+          await mysqlPool.query(`ALTER TABLE matches ADD COLUMN action_logs LONGTEXT NULL AFTER notes;`);
+          await mysqlPool.query(`ALTER TABLE matches ADD COLUMN kill_logs LONGTEXT NULL AFTER action_logs;`);
+        }
+
         // Ensure default AC Ludo League 1 exists
         await mysqlPool.query(`
           INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
@@ -212,6 +223,8 @@ function initEmbeddedSchema() {
       match_time TIME NOT NULL,
       player_count INTEGER NOT NULL,
       notes TEXT,
+      action_logs TEXT,
+      kill_logs TEXT,
       created_by INTEGER,
       is_deleted INTEGER NOT NULL DEFAULT 0,
       deleted_by INTEGER,
@@ -296,6 +309,12 @@ function initEmbeddedSchema() {
     const cols = tableInfo[0]?.values?.map((v: any) => v[1]) || [];
     if (!cols.includes('league_id')) {
       sqlJsDb.exec('ALTER TABLE matches ADD COLUMN league_id INTEGER NOT NULL DEFAULT 1;');
+    }
+    if (!cols.includes('action_logs')) {
+      sqlJsDb.exec('ALTER TABLE matches ADD COLUMN action_logs TEXT DEFAULT NULL;');
+    }
+    if (!cols.includes('kill_logs')) {
+      sqlJsDb.exec('ALTER TABLE matches ADD COLUMN kill_logs TEXT DEFAULT NULL;');
     }
   } catch (err) {
     // Already exists or fresh db

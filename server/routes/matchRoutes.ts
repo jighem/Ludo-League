@@ -81,7 +81,7 @@ router.post('/check-duplicate', authenticateToken, async (req, res) => {
 // Create new match (Transactional)
 router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (req: AuthenticatedRequest, res) => {
   try {
-    const { match_date, match_time, player_count, notes, results, league_id } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs } = req.body;
 
     // Validations
     if (!match_date || !match_time) {
@@ -148,6 +148,14 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
       }
     }
 
+    // Format logs for storage
+    const actionLogsStr = action_logs
+      ? (typeof action_logs === 'string' ? action_logs : JSON.stringify(action_logs))
+      : null;
+    const killLogsStr = kill_logs
+      ? (typeof kill_logs === 'string' ? kill_logs : JSON.stringify(kill_logs))
+      : null;
+
     // Fetch current scoring rules
     const pointsMap = await getScoringRules(pCount);
     const friendlyId = await generateFriendlyId();
@@ -156,9 +164,9 @@ router.post('/', authenticateToken, requireRole(['admin', 'operator']), async (r
     // Transaction execution
     const newMatchId = await transaction(async (tx) => {
       const mRes = await tx.execute(
-        `INSERT INTO matches (league_id, friendly_id, match_date, match_time, player_count, notes, created_by, is_deleted, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [targetLeagueId, friendlyId, match_date, match_time, pCount, notes?.trim() || null, createdBy]
+        `INSERT INTO matches (league_id, friendly_id, match_date, match_time, player_count, notes, action_logs, kill_logs, created_by, is_deleted, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [targetLeagueId, friendlyId, match_date, match_time, pCount, notes?.trim() || null, actionLogsStr, killLogsStr, createdBy]
       );
 
       const matchId = mRes.insertId;
@@ -319,7 +327,7 @@ router.get('/:id', optionalAuthenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async (req: AuthenticatedRequest, res) => {
   try {
     const matchId = Number(req.params.id);
-    const { match_date, match_time, player_count, notes, results, league_id } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs } = req.body;
 
     const existingMatch = await query<any>('SELECT * FROM matches WHERE id = ? AND is_deleted = 0', [matchId]);
     if (existingMatch.length === 0) {
@@ -379,13 +387,21 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       positions.add(pos);
     }
 
+    // Format logs if provided, otherwise preserve existing
+    const actionLogsStr = action_logs !== undefined
+      ? (action_logs ? (typeof action_logs === 'string' ? action_logs : JSON.stringify(action_logs)) : null)
+      : currentMatch.action_logs;
+    const killLogsStr = kill_logs !== undefined
+      ? (kill_logs ? (typeof kill_logs === 'string' ? kill_logs : JSON.stringify(kill_logs)) : null)
+      : currentMatch.kill_logs;
+
     const pointsMap = await getScoringRules(pCount);
 
     await transaction(async (tx) => {
       // Update match record
       await tx.execute(
-        `UPDATE matches SET league_id = ?, match_date = ?, match_time = ?, player_count = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [targetLeagueId, match_date, match_time, pCount, notes?.trim() || null, matchId]
+        `UPDATE matches SET league_id = ?, match_date = ?, match_time = ?, player_count = ?, notes = ?, action_logs = ?, kill_logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [targetLeagueId, match_date, match_time, pCount, notes?.trim() || null, actionLogsStr, killLogsStr, matchId]
       );
 
       // Replace match results

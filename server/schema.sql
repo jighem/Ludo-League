@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS matches (
   match_time TIME NOT NULL,
   player_count INT NOT NULL,
   notes TEXT NULL,
+  action_logs LONGTEXT NULL,
+  kill_logs LONGTEXT NULL,
   created_by INT NULL,
   is_deleted TINYINT(1) NOT NULL DEFAULT 0,
   deleted_by INT NULL,

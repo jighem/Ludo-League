@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LeaderboardItem } from '../types';
 import { apiRequest } from '../api/client';
 import { useLeague } from '../context/LeagueContext';
-import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown, RefreshCw } from 'lucide-react';
+import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown, RefreshCw, Swords, Crosshair, Skull } from 'lucide-react';
 
 interface LeaderboardsProps {
   onSelectPlayer: (playerId: number) => void;
@@ -19,6 +19,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
 
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
+  const [sortBy, setSortBy] = useState<'rank' | 'kills' | 'wins' | 'podium' | 'points'>('rank');
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [minQualThreshold, setMinQualThreshold] = useState<number>(8);
@@ -60,6 +61,26 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
     window.open(url, '_blank');
   };
 
+  // Sort display items based on selected sort metric
+  const sortedDisplayItems = [...leaderboard].sort((a, b) => {
+    if (sortBy === 'kills') {
+      return (b.total_kills || 0) - (a.total_kills || 0) || (b.net_combat_points || 0) - (a.net_combat_points || 0);
+    }
+    if (sortBy === 'wins') {
+      return b.wins_1st - a.wins_1st || b.win_pct - a.win_pct;
+    }
+    if (sortBy === 'podium') {
+      return b.podium_pct - a.podium_pct || (b.pos_2nd + b.pos_3rd + b.wins_1st) - (a.pos_2nd + a.pos_3rd + a.wins_1st);
+    }
+    if (sortBy === 'points') {
+      return b.total_points - a.total_points;
+    }
+    // Default: official calculated rank
+    if (a.is_qualified && !b.is_qualified) return -1;
+    if (!a.is_qualified && b.is_qualified) return 1;
+    return (a.rank || 999) - (b.rank || 999) || b.average_score - a.average_score;
+  });
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -70,9 +91,9 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
               <Trophy className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Official Standings</h2>
+              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Official Standings & Combat Stats</h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Calculated strictly by <span className="font-bold">Average Score = Total Points / Matches</span>
+                Calculated strictly by <span className="font-bold">Average Score = Total Points / Matches</span> with tracked pawn knockouts
               </p>
             </div>
           </div>
@@ -133,8 +154,8 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
           </button>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex items-center space-x-2">
+        {/* Filters & Sorting */}
+        <div className="flex flex-wrap items-center gap-2">
           {tab === 'monthly' && (
             <div className="flex items-center space-x-2">
               <Calendar className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
@@ -142,7 +163,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
               />
             </div>
           )}
@@ -153,7 +174,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
               >
                 {[2026, 2025, 2024].map((y) => (
                   <option key={y} value={y}>{y}</option>
@@ -161,6 +182,43 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
               </select>
             </div>
           )}
+
+          {/* Quick Sort Filter */}
+          <div className="flex items-center space-x-1 bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs">
+            <span className="text-[10px] font-bold text-zinc-400 px-1">Sort:</span>
+            <button
+              onClick={() => setSortBy('rank')}
+              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors cursor-pointer ${
+                sortBy === 'rank' ? 'bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-400 shadow-xs' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Rank
+            </button>
+            <button
+              onClick={() => setSortBy('kills')}
+              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors cursor-pointer flex items-center space-x-1 ${
+                sortBy === 'kills' ? 'bg-rose-500 text-white shadow-xs' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              <span>⚔️ Kills</span>
+            </button>
+            <button
+              onClick={() => setSortBy('wins')}
+              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors cursor-pointer ${
+                sortBy === 'wins' ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Wins
+            </button>
+            <button
+              onClick={() => setSortBy('podium')}
+              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors cursor-pointer ${
+                sortBy === 'podium' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Podium %
+            </button>
+          </div>
         </div>
       </div>
 
@@ -183,7 +241,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
             <div className="inline-block w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
             <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Calculating official database rankings...</p>
           </div>
-        ) : leaderboard.length === 0 || !leaderboard.some((item) => item.total_matches > 0) ? (
+        ) : sortedDisplayItems.length === 0 || !sortedDisplayItems.some((item) => item.total_matches > 0) ? (
           <div className="py-16 text-center text-zinc-500 dark:text-zinc-400 space-y-2">
             <Trophy className="w-12 h-12 mx-auto text-zinc-400 dark:text-zinc-700" />
             <p className="text-base font-bold text-zinc-800 dark:text-zinc-300">No standings available for this period.</p>
@@ -201,6 +259,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                   <th className="py-3 px-4 text-center whitespace-nowrap">2nd</th>
                   <th className="py-3 px-4 text-center whitespace-nowrap">3rd</th>
                   <th className="py-3 px-4 text-center whitespace-nowrap">Last</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap bg-rose-500/10 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400">⚔️ Kills / 💀 Deaths</th>
                   <th className="py-3 px-4 text-right whitespace-nowrap">Total Pts</th>
                   <th className="py-3 px-4 text-right whitespace-nowrap">Avg Score</th>
                   <th className="py-3 px-4 text-center whitespace-nowrap">Avg Finish</th>
@@ -211,7 +270,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
               </thead>
 
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60 font-medium text-zinc-800 dark:text-zinc-200">
-                {leaderboard.map((item) => (
+                {sortedDisplayItems.map((item) => (
                   <tr
                     key={item.player_id}
                     onClick={() => onSelectPlayer(item.player_id)}
@@ -259,6 +318,16 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
                     <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.pos_2nd}</td>
                     <td className="py-3.5 px-4 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.pos_3rd}</td>
                     <td className="py-3.5 px-4 text-center text-red-600 dark:text-red-400 font-bold whitespace-nowrap">{item.last_place}</td>
+                    
+                    {/* Combat Stats Column */}
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap bg-rose-50/50 dark:bg-rose-950/10">
+                      <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-lg bg-rose-100/80 dark:bg-rose-950/60 border border-rose-300/40 dark:border-rose-800/40 text-[11px] font-bold">
+                        <span className="text-rose-600 dark:text-rose-400">⚔️ {item.total_kills || 0}</span>
+                        <span className="text-zinc-400 font-normal">/</span>
+                        <span className="text-zinc-500 dark:text-zinc-400">💀 {item.total_deaths || 0}</span>
+                      </div>
+                    </td>
+
                     <td className="py-3.5 px-4 text-right font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.total_points.toFixed(2)}</td>
                     <td className="py-3.5 px-4 text-right font-black text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">{item.average_score.toFixed(2)}</td>
                     <td className="py-3.5 px-4 text-center font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{item.average_position.toFixed(2)}</td>

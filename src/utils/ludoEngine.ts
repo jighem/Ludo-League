@@ -150,35 +150,35 @@ export const FINISH_POSITIONS: Record<LudoColor, GridPos[]> = {
   ]
 };
 
-// Base yard spawn coordinates for tokens (Row, Col) matching 6x6 corner white pads
+// Base yard spawn coordinates for tokens (Row, Col) matching centered compact corner white pads
 export const BASE_POSITIONS: Record<LudoColor, GridPos[]> = {
-  // Top-Left: Red Base
+  // Top-Left: Red Base (Centered in 6x6 corner box)
   red: [
-    { row: 1.6, col: 1.6 },
-    { row: 1.6, col: 3.4 },
-    { row: 3.4, col: 1.6 },
-    { row: 3.4, col: 3.4 },
+    { row: 1.8, col: 1.8 },
+    { row: 1.8, col: 3.2 },
+    { row: 3.2, col: 1.8 },
+    { row: 3.2, col: 3.2 },
   ],
   // Top-Right: Green Base
   green: [
-    { row: 1.6, col: 10.6 },
-    { row: 1.6, col: 12.4 },
-    { row: 3.4, col: 10.6 },
-    { row: 3.4, col: 12.4 },
+    { row: 1.8, col: 10.8 },
+    { row: 1.8, col: 12.2 },
+    { row: 3.2, col: 10.8 },
+    { row: 3.2, col: 12.2 },
   ],
   // Bottom-Right: Yellow Base
   yellow: [
-    { row: 10.6, col: 10.6 },
-    { row: 10.6, col: 12.4 },
-    { row: 12.4, col: 10.6 },
-    { row: 12.4, col: 12.4 },
+    { row: 10.8, col: 10.8 },
+    { row: 10.8, col: 12.2 },
+    { row: 12.2, col: 10.8 },
+    { row: 12.2, col: 12.2 },
   ],
   // Bottom-Left: Blue Base
   blue: [
-    { row: 10.6, col: 1.6 },
-    { row: 10.6, col: 3.4 },
-    { row: 12.4, col: 1.6 },
-    { row: 12.4, col: 3.4 },
+    { row: 10.8, col: 1.8 },
+    { row: 10.8, col: 3.2 },
+    { row: 12.2, col: 1.8 },
+    { row: 12.2, col: 3.2 },
   ]
 };
 

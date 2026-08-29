@@ -164,14 +164,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 1. TOP-LEFT: RED BASE YARD (6x6: Row 0..5, Col 0..5)                     */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-red-600 p-2 sm:p-3 flex items-center justify-center relative border-r-2 border-b-2 border-zinc-900">
-          <div className="w-full h-full bg-white rounded-2xl p-2 sm:p-3 grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-3.5 place-items-center shadow-md border-2 border-red-700/30 relative overflow-hidden">
+        <div className="col-span-6 row-span-6 bg-red-600 p-3 sm:p-4.5 flex items-center justify-center relative border-r-2 border-b-2 border-zinc-950">
+          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-red-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-red-500 border-2 border-red-700 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-red-500 border-2 border-red-800 shadow-inner flex items-center justify-center"
               >
-                <div className="w-2 h-2 rounded-full bg-white/40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
 
@@ -180,7 +180,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           </div>
 
           {/* Home Tokens Counter Badge */}
-          <div className="absolute top-1.5 left-2 px-2 py-0.5 rounded-full bg-red-950/85 text-white text-[9px] sm:text-[10px] font-bold border border-red-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
+          <div className="absolute top-1 left-1.5 px-2 py-0.5 rounded-full bg-red-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-red-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.red.count}/4</span>
           </div>
@@ -189,7 +189,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 2. TOP PATH ARM (3 Cols x 6 Rows: Row 0..5, Col 6..8)                    */}
         {/* ========================================================================= */}
-        <div className="col-span-3 row-span-6 grid grid-cols-3 grid-rows-6 border-b-2 border-zinc-900">
+        <div className="col-span-3 row-span-6 grid grid-cols-3 grid-rows-6 border-b-2 border-zinc-950">
           {Array.from({ length: 18 }).map((_, idx) => {
             const r = Math.floor(idx / 3);
             const c = (idx % 3) + 6;
@@ -202,7 +202,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             return (
               <div
                 key={`top-${r}-${c}`}
-                className={`border border-zinc-400/60 flex items-center justify-center relative ${
+                className={`border-[1.5px] border-zinc-800 flex items-center justify-center relative ${
                   isGreenStart || isGreenHomePath
                     ? 'bg-emerald-500 text-white'
                     : isGreenArrowCell
@@ -211,10 +211,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 }`}
               >
                 {isGreenArrowCell && (
-                  <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 stroke-[3]" />
+                  <ArrowDown className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700 stroke-[3]" />
                 )}
                 {isStar && (
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-900 fill-none stroke-[2.5]" />
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-950 fill-none stroke-[2.5]" />
                 )}
               </div>
             );
@@ -224,14 +224,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 3. TOP-RIGHT: GREEN BASE YARD (6x6: Row 0..5, Col 9..14)                 */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-emerald-600 p-2 sm:p-3 flex items-center justify-center relative border-l-2 border-b-2 border-zinc-900">
-          <div className="w-full h-full bg-white rounded-2xl p-2 sm:p-3 grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-3.5 place-items-center shadow-md border-2 border-emerald-700/30 relative overflow-hidden">
+        <div className="col-span-6 row-span-6 bg-emerald-600 p-3 sm:p-4.5 flex items-center justify-center relative border-l-2 border-b-2 border-zinc-950">
+          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-emerald-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-emerald-500 border-2 border-emerald-700 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-emerald-500 border-2 border-emerald-800 shadow-inner flex items-center justify-center"
               >
-                <div className="w-2 h-2 rounded-full bg-white/40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
 
@@ -240,7 +240,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           </div>
 
           {/* Home Tokens Counter Badge */}
-          <div className="absolute top-1.5 right-2 px-2 py-0.5 rounded-full bg-emerald-950/85 text-white text-[9px] sm:text-[10px] font-bold border border-emerald-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
+          <div className="absolute top-1 right-1.5 px-2 py-0.5 rounded-full bg-emerald-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-emerald-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.green.count}/4</span>
           </div>
@@ -249,7 +249,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 4. MIDDLE ROW - LEFT ARM: RED (6 Cols x 3 Rows: Row 6..8, Col 0..5)      */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-3 grid grid-cols-6 grid-rows-3 border-r-2 border-zinc-900">
+        <div className="col-span-6 row-span-3 grid grid-cols-6 grid-rows-3 border-r-2 border-zinc-950">
           {Array.from({ length: 18 }).map((_, idx) => {
             const r = Math.floor(idx / 6) + 6;
             const c = idx % 6;
@@ -262,7 +262,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             return (
               <div
                 key={`left-${r}-${c}`}
-                className={`border border-zinc-400/60 flex items-center justify-center relative ${
+                className={`border-[1.5px] border-zinc-800 flex items-center justify-center relative ${
                   isRedStart || isRedHomePath
                     ? 'bg-red-600 text-white'
                     : isRedArrowCell
@@ -271,10 +271,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 }`}
               >
                 {isRedArrowCell && (
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 stroke-[3]" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-red-700 stroke-[3]" />
                 )}
                 {isStar && (
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-900 fill-none stroke-[2.5]" />
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-950 fill-none stroke-[2.5]" />
                 )}
               </div>
             );
@@ -284,7 +284,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 5. CENTER: 3x3 FINISH ZONE / HOME TRIANGLES (Row 6..8, Col 6..8)          */}
         {/* ========================================================================= */}
-        <div className="col-span-3 row-span-3 relative bg-zinc-900 overflow-hidden border-2 border-zinc-900 shadow-inner">
+        <div className="col-span-3 row-span-3 relative bg-zinc-950 overflow-hidden border-2 border-zinc-950 shadow-inner">
           {/* Top Triangle: GREEN */}
           <div
             className="absolute inset-0 bg-emerald-500"
@@ -307,23 +307,23 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           />
 
           {/* Quadrant Home Badges */}
-          <div className="absolute top-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded bg-emerald-950/75 text-emerald-100 text-[8px] sm:text-[9px] font-black border border-emerald-300/40 pointer-events-none">
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded bg-emerald-950/85 text-emerald-100 text-[8px] sm:text-[9px] font-black border border-emerald-300/40 pointer-events-none">
             {homeTokensByColor.green.count}/4
           </div>
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 px-1.5 py-0.2 rounded bg-amber-950/75 text-amber-100 text-[8px] sm:text-[9px] font-black border border-amber-300/40 pointer-events-none">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 px-1.5 py-0.2 rounded bg-amber-950/85 text-amber-100 text-[8px] sm:text-[9px] font-black border border-amber-300/40 pointer-events-none">
             {homeTokensByColor.yellow.count}/4
           </div>
-          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded bg-blue-950/75 text-blue-100 text-[8px] sm:text-[9px] font-black border border-blue-300/40 pointer-events-none">
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded bg-blue-950/85 text-blue-100 text-[8px] sm:text-[9px] font-black border border-blue-300/40 pointer-events-none">
             {homeTokensByColor.blue.count}/4
           </div>
-          <div className="absolute left-1 top-1/2 -translate-y-1/2 px-1.5 py-0.2 rounded bg-red-950/75 text-red-100 text-[8px] sm:text-[9px] font-black border border-red-300/40 pointer-events-none">
+          <div className="absolute left-1 top-1/2 -translate-y-1/2 px-1.5 py-0.2 rounded bg-red-950/85 text-red-100 text-[8px] sm:text-[9px] font-black border border-red-300/40 pointer-events-none">
             {homeTokensByColor.red.count}/4
           </div>
 
           {/* Central Crown Finish Icon */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-zinc-950/85 border-2 border-amber-300 flex items-center justify-center shadow-lg">
-              <Crown className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-amber-400 fill-amber-400" />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-zinc-950/90 border-2 border-amber-300 flex items-center justify-center shadow-lg">
+              <Crown className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400 fill-amber-400" />
             </div>
           </div>
         </div>
@@ -331,7 +331,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 6. MIDDLE ROW - RIGHT ARM: YELLOW (6 Cols x 3 Rows: Row 6..8, Col 9..14) */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-3 grid grid-cols-6 grid-rows-3 border-l-2 border-zinc-900">
+        <div className="col-span-6 row-span-3 grid grid-cols-6 grid-rows-3 border-l-2 border-zinc-950">
           {Array.from({ length: 18 }).map((_, idx) => {
             const r = Math.floor(idx / 6) + 6;
             const c = (idx % 6) + 9;
@@ -344,7 +344,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             return (
               <div
                 key={`right-${r}-${c}`}
-                className={`border border-zinc-400/60 flex items-center justify-center relative ${
+                className={`border-[1.5px] border-zinc-800 flex items-center justify-center relative ${
                   isYellowStart || isYellowHomePath
                     ? 'bg-amber-400 text-zinc-950'
                     : isYellowArrowCell
@@ -353,10 +353,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 }`}
               >
                 {isYellowArrowCell && (
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 stroke-[3]" />
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700 stroke-[3]" />
                 )}
                 {isStar && (
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-900 fill-none stroke-[2.5]" />
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-950 fill-none stroke-[2.5]" />
                 )}
               </div>
             );
@@ -366,14 +366,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 7. BOTTOM-LEFT: BLUE BASE YARD (6x6: Row 9..14, Col 0..5)                */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-blue-600 p-2 sm:p-3 flex items-center justify-center relative border-r-2 border-t-2 border-zinc-900">
-          <div className="w-full h-full bg-white rounded-2xl p-2 sm:p-3 grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-3.5 place-items-center shadow-md border-2 border-blue-700/30 relative overflow-hidden">
+        <div className="col-span-6 row-span-6 bg-blue-600 p-3 sm:p-4.5 flex items-center justify-center relative border-r-2 border-t-2 border-zinc-950">
+          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-blue-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-blue-500 border-2 border-blue-700 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-blue-500 border-2 border-blue-800 shadow-inner flex items-center justify-center"
               >
-                <div className="w-2 h-2 rounded-full bg-white/40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
 
@@ -382,7 +382,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           </div>
 
           {/* Home Tokens Counter Badge */}
-          <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-full bg-blue-950/85 text-white text-[9px] sm:text-[10px] font-bold border border-blue-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
+          <div className="absolute bottom-1 left-1.5 px-2 py-0.5 rounded-full bg-blue-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-blue-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.blue.count}/4</span>
           </div>
@@ -391,7 +391,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 8. BOTTOM PATH ARM (3 Cols x 6 Rows: Row 9..14, Col 6..8)                */}
         {/* ========================================================================= */}
-        <div className="col-span-3 row-span-6 grid grid-cols-3 grid-rows-6 border-t-2 border-zinc-900">
+        <div className="col-span-3 row-span-6 grid grid-cols-3 grid-rows-6 border-t-2 border-zinc-950">
           {Array.from({ length: 18 }).map((_, idx) => {
             const r = Math.floor(idx / 3) + 9;
             const c = (idx % 3) + 6;
@@ -404,7 +404,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             return (
               <div
                 key={`bot-${r}-${c}`}
-                className={`border border-zinc-400/60 flex items-center justify-center relative ${
+                className={`border-[1.5px] border-zinc-800 flex items-center justify-center relative ${
                   isBlueStart || isBlueHomePath
                     ? 'bg-blue-500 text-white'
                     : isBlueArrowCell
@@ -413,10 +413,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 }`}
               >
                 {isBlueArrowCell && (
-                  <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 stroke-[3]" />
+                  <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-700 stroke-[3]" />
                 )}
                 {isStar && (
-                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-900 fill-none stroke-[2.5]" />
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-950 fill-none stroke-[2.5]" />
                 )}
               </div>
             );
@@ -426,14 +426,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 9. BOTTOM-RIGHT: YELLOW BASE YARD (6x6: Row 9..14, Col 9..14)            */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-amber-400 p-2 sm:p-3 flex items-center justify-center relative border-l-2 border-t-2 border-zinc-900">
-          <div className="w-full h-full bg-white rounded-2xl p-2 sm:p-3 grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-3.5 place-items-center shadow-md border-2 border-amber-500/30 relative overflow-hidden">
+        <div className="col-span-6 row-span-6 bg-amber-400 p-3 sm:p-4.5 flex items-center justify-center relative border-l-2 border-t-2 border-zinc-950">
+          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-amber-600/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-amber-400 border-2 border-amber-600 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-amber-400 border-2 border-amber-700 shadow-inner flex items-center justify-center"
               >
-                <div className="w-2 h-2 rounded-full bg-white/40" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
 
@@ -442,7 +442,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           </div>
 
           {/* Home Tokens Counter Badge */}
-          <div className="absolute bottom-1.5 right-2 px-2 py-0.5 rounded-full bg-amber-950/85 text-amber-100 text-[9px] sm:text-[10px] font-bold border border-amber-300/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
+          <div className="absolute bottom-1 right-1.5 px-2 py-0.5 rounded-full bg-amber-950/90 text-amber-100 text-[8px] sm:text-[9px] font-bold border border-amber-300/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
             <span>🏠 Home:</span>
             <span className="text-amber-300 font-extrabold">{homeTokensByColor.yellow.count}/4</span>
           </div>
@@ -463,13 +463,47 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             let leftPct = col * cellWidthPct;
             let topPct = row * cellWidthPct;
 
-            // Apply slight offset for multiple pawns on the same square
-            if (count > 1 && token.step !== -1 && !isWalking) {
-              const angle = (stackIdx * (360 / count)) * (Math.PI / 180);
-              const offsetDistance = 1.3; // percentage
-              leftPct += Math.cos(angle) * offsetDistance;
-              topPct += Math.sin(angle) * offsetDistance;
+            // When multiple tokens share the exact square, calculate discrete visual offset so each is visible
+            const isAtHomeBase = token.step === -1;
+            if (count > 1 && !isAtHomeBase && !isWalking) {
+              if (count === 2) {
+                // 2 tokens: Place top-left and bottom-right
+                const offsets = [
+                  { x: -1.35, y: -1.35 },
+                  { x: 1.35, y: 1.35 }
+                ];
+                leftPct += offsets[stackIdx % 2].x;
+                topPct += offsets[stackIdx % 2].y;
+              } else if (count === 3) {
+                // 3 tokens: Triangle placement
+                const offsets = [
+                  { x: 0, y: -1.5 },
+                  { x: -1.45, y: 1.25 },
+                  { x: 1.45, y: 1.25 }
+                ];
+                leftPct += offsets[stackIdx % 3].x;
+                topPct += offsets[stackIdx % 3].y;
+              } else {
+                // 4 tokens: 2x2 grid placement
+                const offsets = [
+                  { x: -1.4, y: -1.4 },
+                  { x: 1.4, y: -1.4 },
+                  { x: -1.4, y: 1.4 },
+                  { x: 1.4, y: 1.4 }
+                ];
+                leftPct += offsets[stackIdx % 4].x;
+                topPct += offsets[stackIdx % 4].y;
+              }
             }
+
+            // Dynamic scaling: when multiple tokens are sitting on the same tile, shrink tokens so all are clearly visible
+            const multiScale = (count > 1 && !isAtHomeBase && !isWalking)
+              ? count === 2
+                ? 0.76
+                : count === 3
+                ? 0.64
+                : 0.54
+              : 1;
 
             return (
               <button
@@ -483,7 +517,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   top: `${topPct}%`,
                   width: `${cellWidthPct}%`,
                   height: `${cellWidthPct}%`,
-                  zIndex: isWalking ? 60 : isMovable ? 40 : 15 + stackIdx,
+                  zIndex: isWalking ? 60 : isMovable ? 45 : 15 + stackIdx,
                   transition: isWalking
                     ? 'left 160ms cubic-bezier(0.25, 1, 0.5, 1), top 160ms cubic-bezier(0.25, 1, 0.5, 1)'
                     : 'left 220ms ease-out, top 220ms ease-out',
@@ -492,13 +526,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   isMovable && !isWalking ? 'cursor-pointer' : 'cursor-default pointer-events-none'
                 }`}
               >
-                {/* Authentic 3D Teardrop / Map-Pin Pawn Design */}
+                {/* Authentic 3D Pawn with dynamic multi-token scaling */}
                 <div
-                  className={`relative flex flex-col items-center justify-center transition-transform ${
+                  style={{ transform: `scale(${multiScale})` }}
+                  className={`relative flex flex-col items-center justify-center transition-transform origin-center ${
                     isWalking
-                      ? 'scale-130 -translate-y-2'
+                      ? 'scale-125 -translate-y-2'
                       : isMovable
-                      ? 'scale-125 ring-4 ring-amber-400 ring-offset-2 ring-offset-zinc-950 rounded-full animate-bounce'
+                      ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-zinc-950 rounded-full animate-bounce'
                       : ''
                   } ${token.hasWon ? 'opacity-85 scale-90' : ''}`}
                 >

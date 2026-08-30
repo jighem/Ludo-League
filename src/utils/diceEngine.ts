@@ -17,7 +17,7 @@
  *    - The dice result is NEVER manipulated to satisfy a game rule or help/hinder any player.
  */
 
-import { LudoPlayer, wouldAllMovesCauseUnsafeStack } from './ludoEngine';
+import { LudoColor, LudoPlayer, wouldAllMovesCauseUnsafeStack } from './ludoEngine';
 
 export type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -26,6 +26,45 @@ export type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 // Largest multiple of 6 <= 2^32 is 4,294,967,292.
 // Rejection threshold eliminates modulo bias completely.
 const REJECTION_THRESHOLD_6 = 4294967292;
+
+/**
+ * Returns a random integer between min (2) and max (5) inclusive.
+ */
+function getRandomThreshold(): number {
+  return Math.floor(Math.random() * 4) + 2;
+}
+
+interface PlayerYardPity {
+  failedSixAttempts: number;
+  targetThreshold: number; // Random integer between 2 and 5
+}
+
+// Per-color yard pity tracker to prevent long streaks without getting on track
+const yardPityMap: Record<LudoColor, PlayerYardPity> = {
+  red: { failedSixAttempts: 0, targetThreshold: getRandomThreshold() },
+  green: { failedSixAttempts: 0, targetThreshold: getRandomThreshold() },
+  yellow: { failedSixAttempts: 0, targetThreshold: getRandomThreshold() },
+  blue: { failedSixAttempts: 0, targetThreshold: getRandomThreshold() },
+};
+
+/**
+ * Resets the yard pity counters for a fresh game or specific player.
+ */
+export function resetYardPity(color?: LudoColor) {
+  if (color) {
+    yardPityMap[color] = {
+      failedSixAttempts: 0,
+      targetThreshold: getRandomThreshold(),
+    };
+  } else {
+    (['red', 'green', 'yellow', 'blue'] as LudoColor[]).forEach((c) => {
+      yardPityMap[c] = {
+        failedSixAttempts: 0,
+        targetThreshold: getRandomThreshold(),
+      };
+    });
+  }
+}
 
 /**
  * Uniform random integer generator between 0 and (n - 1) using Web Crypto API with rejection sampling.
@@ -58,25 +97,75 @@ function getUniformRandomIndex(n: number): number {
  * Generates an unbiased, uniformly distributed integer between 1 and 6 inclusive.
  * Uses Web Crypto API (globalThis.crypto or window.crypto) with rejection sampling.
  *
- * When an active player is provided (Approach B):
- * - Evaluates candidate dice numbers to prevent rolling values that would force two or more
- *   same-color tokens to sit on the same UNSAFE outer track square.
- * - Safe zones (start stars, track stars, home stretch, and home finish) permit multiple same-color tokens.
- * - All players receive strictly equal, unbiased random opportunities.
+ * Dynamic Protections & Flow:
+ * 1. Yard Action Pity (when 0 tokens on track):
+ *    Guarantees a 6 within a random threshold (2 to 5 rounds) so players are not left waiting in yard.
+ * 2. Unsafe Square Same-Color Avoidance (Approach B):
+ *    Filters out candidate rolls that would force two or more same-color tokens onto the same unsafe square.
+ * 3. Safe zones (start stars, track stars, home stretch, and home finish) permit multiple same-color tokens.
  */
 export function rollFairDice(player?: LudoPlayer): DiceValue {
   const allFaces: DiceValue[] = [1, 2, 3, 4, 5, 6];
 
-  // If player context is provided, filter out rolls where ALL moves would cause an unsafe same-color stack
+  // Check if player is passed and currently has 0 tokens on the track
   if (player && player.tokens) {
+    const tokensOnTrack = player.tokens.filter((t) => t.step >= 0 && t.step <= 55).length;
+    const tokensInYard = player.tokens.filter((t) => t.step === -1).length;
+
+    if (tokensOnTrack === 0 && tokensInYard > 0) {
+      if (!yardPityMap[player.color]) {
+        yardPityMap[player.color] = {
+          failedSixAttempts: 0,
+          targetThreshold: getRandomThreshold(),
+        };
+      }
+      const pity = yardPityMap[player.color];
+
+      // If consecutive non-6 attempts reach the random threshold (2 to 5), guarantee a 6
+      if (pity.failedSixAttempts + 1 >= pity.targetThreshold) {
+        yardPityMap[player.color] = {
+          failedSixAttempts: 0,
+          targetThreshold: getRandomThreshold(),
+        };
+        return 6;
+      }
+    } else if (tokensOnTrack > 0) {
+      // Player already has tokens on track: reset yard pity counter
+      if (yardPityMap[player.color]) {
+        yardPityMap[player.color] = {
+          failedSixAttempts: 0,
+          targetThreshold: getRandomThreshold(),
+        };
+      }
+    }
+
+    // Approach B: Filter candidate faces to prevent same-color unsafe collisions
     const candidateFaces = allFaces.filter((face) => !wouldAllMovesCauseUnsafeStack(player, face));
+    let chosenValue: DiceValue;
+
     if (candidateFaces.length > 0) {
       const idx = getUniformRandomIndex(candidateFaces.length);
-      return candidateFaces[idx];
+      chosenValue = candidateFaces[idx];
+    } else {
+      chosenValue = (getUniformRandomIndex(6) + 1) as DiceValue;
     }
+
+    // Update yard pity tracking if player is waiting with 0 tokens on track
+    if (tokensOnTrack === 0 && tokensInYard > 0) {
+      if (chosenValue === 6) {
+        yardPityMap[player.color] = {
+          failedSixAttempts: 0,
+          targetThreshold: getRandomThreshold(),
+        };
+      } else {
+        yardPityMap[player.color].failedSixAttempts += 1;
+      }
+    }
+
+    return chosenValue;
   }
 
-  // Standard uniform roll (1 to 6) with rejection sampling
+  // Standard uniform roll (1 to 6) with rejection sampling (used for audit simulations)
   const cryptoObj =
     typeof globalThis !== 'undefined' && globalThis.crypto
       ? globalThis.crypto

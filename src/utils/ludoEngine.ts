@@ -23,6 +23,8 @@ export interface LudoPlayer {
   consecutiveSixes: number;
   kills: number;
   deaths: number;
+  killedOpponents?: Partial<Record<LudoColor, number>>; // e.g. { red: 1, green: 2 }
+  killedBy?: Partial<Record<LudoColor, number>>; // e.g. { yellow: 1 }
 }
 
 export interface GridPos {

@@ -115,6 +115,116 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     return false;
   };
 
+  const COLOR_DOT_STYLES: Record<LudoColor, { bg: string; border: string }> = {
+    red: { bg: 'bg-red-500', border: 'border-red-800' },
+    green: { bg: 'bg-emerald-500', border: 'border-emerald-800' },
+    yellow: { bg: 'bg-amber-400', border: 'border-amber-700' },
+    blue: { bg: 'bg-blue-500', border: 'border-blue-800' },
+  };
+
+  // Helper to render Top Player Name Badge on Base Yard
+  const renderYardPlayerHeader = (player?: LudoPlayer, align: 'left' | 'right' = 'left') => {
+    if (!player) return null;
+    const isActive = activeColor === player.color;
+    return (
+      <div
+        className={`absolute top-1 ${
+          align === 'left' ? 'left-1.5' : 'right-1.5'
+        } flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[9.5px] font-black z-10 transition-all shadow-md backdrop-blur-xs max-w-[95%] ${
+          isActive
+            ? 'bg-zinc-950 text-white border border-amber-400 ring-2 ring-amber-400/60 shadow-amber-500/30'
+            : 'bg-zinc-950/85 text-zinc-200 border border-white/20'
+        }`}
+        title={player.name}
+      >
+        <span className="text-[9px]">{player.isBot ? '🤖' : '👤'}</span>
+        <span className="truncate max-w-[50px] sm:max-w-[75px] font-extrabold">{player.name}</span>
+        {isActive && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />}
+      </div>
+    );
+  };
+
+  // Helper to render color-coded Kills & Killed-By breakdown tokens
+  const renderYardCombatTokens = (player?: LudoPlayer, align: 'left' | 'right' = 'left') => {
+    if (!player) return null;
+    const killed = player.killedOpponents || {};
+    const deaths = player.killedBy || {};
+
+    const killedEntries = (Object.entries(killed) as [LudoColor, number][]).filter(([_, cnt]) => (cnt || 0) > 0);
+    const deathEntries = (Object.entries(deaths) as [LudoColor, number][]).filter(([_, cnt]) => (cnt || 0) > 0);
+
+    if (killedEntries.length === 0 && deathEntries.length === 0) return null;
+
+    return (
+      <div
+        className={`absolute top-6.5 sm:top-7 ${
+          align === 'left' ? 'left-1.5 items-start' : 'right-1.5 items-end'
+        } flex flex-col gap-0.5 z-10 pointer-events-none`}
+      >
+        {killedEntries.length > 0 && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-950/90 border border-red-500/40 text-white text-[7px] sm:text-[8px] font-bold shadow-xs backdrop-blur-xs">
+            <span className="text-red-400 font-extrabold">⚔️</span>
+            <div className="flex items-center gap-1">
+              {killedEntries.map(([col, cnt]) => (
+                <span key={col} className="flex items-center gap-0.5">
+                  <span
+                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${COLOR_DOT_STYLES[col].bg} border ${COLOR_DOT_STYLES[col].border} inline-block shadow-xs shrink-0`}
+                    title={`Killed ${col} token`}
+                  />
+                  <span className="text-zinc-200 font-extrabold">{cnt}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {deathEntries.length > 0 && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-950/90 border border-purple-500/40 text-white text-[7px] sm:text-[8px] font-bold shadow-xs backdrop-blur-xs">
+            <span className="text-purple-400 font-extrabold">💀</span>
+            <div className="flex items-center gap-1">
+              {deathEntries.map(([col, cnt]) => (
+                <span key={col} className="flex items-center gap-0.5">
+                  <span
+                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${COLOR_DOT_STYLES[col].bg} border ${COLOR_DOT_STYLES[col].border} inline-block shadow-xs shrink-0`}
+                    title={`Killed by ${col} token`}
+                  />
+                  <span className="text-zinc-200 font-extrabold">{cnt}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper to render Bottom Counter (Home + Kills + Deaths)
+  const renderYardBottomCounter = (player?: LudoPlayer, align: 'left' | 'right' = 'left') => {
+    if (!player) return null;
+    const homeCount = homeTokensByColor[player.color].count;
+    return (
+      <div
+        className={`absolute bottom-1 ${
+          align === 'left' ? 'left-1.5' : 'right-1.5'
+        } px-1.5 sm:px-2 py-0.5 rounded-full bg-zinc-950/90 text-white text-[7.5px] sm:text-[8.5px] font-bold border border-white/20 flex items-center gap-1 sm:gap-1.5 shadow-sm backdrop-blur-xs z-10`}
+      >
+        <span className="flex items-center gap-0.5 sm:gap-1">
+          <span>🏠 Home:</span>
+          <span className="text-amber-300 font-extrabold">{homeCount}/4</span>
+        </span>
+        <span className="text-zinc-600">|</span>
+        <span className="flex items-center gap-0.5 text-red-300 font-extrabold" title="Kills (+5 pts)">
+          <span>⚔️</span>
+          <span>{player.kills || 0}</span>
+        </span>
+        <span className="text-zinc-600">|</span>
+        <span className="flex items-center gap-0.5 text-purple-300 font-extrabold" title="Deaths (-5 pts)">
+          <span>💀</span>
+          <span>{player.deaths || 0}</span>
+        </span>
+      </div>
+    );
+  };
+
   // Helper to render Position/Rank Badge inside Yard Square upon winning / ranking
   const renderYardPositionBadge = (player?: LudoPlayer) => {
     if (!player || !player.rank) return null;
@@ -179,11 +289,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             {renderYardPositionBadge(redPlayer)}
           </div>
 
-          {/* Home Tokens Counter Badge */}
-          <div className="absolute top-1 left-1.5 px-2 py-0.5 rounded-full bg-red-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-red-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
-            <span>🏠 Home:</span>
-            <span className="text-amber-300 font-extrabold">{homeTokensByColor.red.count}/4</span>
-          </div>
+          {/* Player Name Header */}
+          {renderYardPlayerHeader(redPlayer, 'left')}
+
+          {/* Color-coded Kills & Killed-By breakdown tokens */}
+          {renderYardCombatTokens(redPlayer, 'left')}
+
+          {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
+          {renderYardBottomCounter(redPlayer, 'left')}
         </div>
 
         {/* ========================================================================= */}
@@ -239,11 +352,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             {renderYardPositionBadge(greenPlayer)}
           </div>
 
-          {/* Home Tokens Counter Badge */}
-          <div className="absolute top-1 right-1.5 px-2 py-0.5 rounded-full bg-emerald-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-emerald-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
-            <span>🏠 Home:</span>
-            <span className="text-amber-300 font-extrabold">{homeTokensByColor.green.count}/4</span>
-          </div>
+          {/* Player Name Header */}
+          {renderYardPlayerHeader(greenPlayer, 'right')}
+
+          {/* Color-coded Kills & Killed-By breakdown tokens */}
+          {renderYardCombatTokens(greenPlayer, 'right')}
+
+          {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
+          {renderYardBottomCounter(greenPlayer, 'right')}
         </div>
 
         {/* ========================================================================= */}
@@ -381,11 +497,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             {renderYardPositionBadge(bluePlayer)}
           </div>
 
-          {/* Home Tokens Counter Badge */}
-          <div className="absolute bottom-1 left-1.5 px-2 py-0.5 rounded-full bg-blue-950/90 text-white text-[8px] sm:text-[9px] font-bold border border-blue-400/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
-            <span>🏠 Home:</span>
-            <span className="text-amber-300 font-extrabold">{homeTokensByColor.blue.count}/4</span>
-          </div>
+          {/* Player Name Header */}
+          {renderYardPlayerHeader(bluePlayer, 'left')}
+
+          {/* Color-coded Kills & Killed-By breakdown tokens */}
+          {renderYardCombatTokens(bluePlayer, 'left')}
+
+          {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
+          {renderYardBottomCounter(bluePlayer, 'left')}
         </div>
 
         {/* ========================================================================= */}
@@ -441,11 +560,14 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
             {renderYardPositionBadge(yellowPlayer)}
           </div>
 
-          {/* Home Tokens Counter Badge */}
-          <div className="absolute bottom-1 right-1.5 px-2 py-0.5 rounded-full bg-amber-950/90 text-amber-100 text-[8px] sm:text-[9px] font-bold border border-amber-300/50 flex items-center gap-1 shadow-sm backdrop-blur-xs z-10">
-            <span>🏠 Home:</span>
-            <span className="text-amber-300 font-extrabold">{homeTokensByColor.yellow.count}/4</span>
-          </div>
+          {/* Player Name Header */}
+          {renderYardPlayerHeader(yellowPlayer, 'right')}
+
+          {/* Color-coded Kills & Killed-By breakdown tokens */}
+          {renderYardCombatTokens(yellowPlayer, 'right')}
+
+          {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
+          {renderYardBottomCounter(yellowPlayer, 'right')}
         </div>
 
         {/* ========================================================================= */}

@@ -112,29 +112,53 @@ class LudoAudioEngine {
     }
   }
 
-  // Sound: Token Capture / Knock opponent
+  // Sound: Token Capture / Knockout Opponent (Energetic Knockout Effect)
   public playCapture() {
     const ctx = this.getContext();
     if (!ctx) return;
 
     try {
       const now = ctx.currentTime;
-      // High to low swoosh
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      
+      // 1. Heavy Punch Impact (Sub Bass kick)
+      const subOsc = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(180, now);
+      subOsc.frequency.exponentialRampToValueAtTime(35, now + 0.22);
+      subGain.gain.setValueAtTime(0.4, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      subOsc.connect(subGain);
+      subGain.connect(ctx.destination);
+      subOsc.start(now);
+      subOsc.stop(now + 0.25);
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(600, now);
-      osc.frequency.exponentialRampToValueAtTime(120, now + 0.25);
+      // 2. Energetic Combat Swoosh / Laser Knockout Punch
+      const punchOsc = ctx.createOscillator();
+      const punchGain = ctx.createGain();
+      punchOsc.type = 'sawtooth';
+      punchOsc.frequency.setValueAtTime(880, now);
+      punchOsc.frequency.exponentialRampToValueAtTime(110, now + 0.28);
+      punchGain.gain.setValueAtTime(0.3, now);
+      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      punchOsc.connect(punchGain);
+      punchGain.connect(ctx.destination);
+      punchOsc.start(now);
+      punchOsc.stop(now + 0.31);
 
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.28);
+      // 3. Victory Ding / Point Reward Fanfare Ping
+      const dingOsc = ctx.createOscillator();
+      const dingGain = ctx.createGain();
+      dingOsc.type = 'triangle';
+      dingOsc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+      dingOsc.frequency.exponentialRampToValueAtTime(987.77, now + 0.2); // B5
+      dingGain.gain.setValueAtTime(0.001, now);
+      dingGain.gain.setValueAtTime(0.22, now + 0.08);
+      dingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      dingOsc.connect(dingGain);
+      dingGain.connect(ctx.destination);
+      dingOsc.start(now + 0.08);
+      dingOsc.stop(now + 0.4);
     } catch {
       // Audio fallback silent
     }

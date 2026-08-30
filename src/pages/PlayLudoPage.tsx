@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   LudoColor,
   LudoPlayer,
@@ -15,7 +16,7 @@ import { LudoBoard } from '../components/ludo/LudoBoard';
 import { LudoDice } from '../components/ludo/LudoDice';
 import { LudoRulesModal } from '../components/ludo/LudoRulesModal';
 import { DiceFairnessModal } from '../components/ludo/DiceFairnessModal';
-import { rollFairDice } from '../utils/diceEngine';
+import { rollFairDice, resetYardPity } from '../utils/diceEngine';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { Player, ScoringRule } from '../types';
@@ -139,6 +140,15 @@ export const PlayLudoPage: React.FC<{
     turn: number;
     timestamp: string;
   }>>([]);
+
+  const [isCombatShaking, setIsCombatShaking] = useState<boolean>(false);
+  const [combatPopup, setCombatPopup] = useState<{
+    killerName: string;
+    killerColor: LudoColor;
+    victimName: string;
+    victimColor: LudoColor;
+    points: number;
+  } | null>(null);
 
   // Game End & League Auto-Record State
   const [rankings, setRankings] = useState<Array<{ rank: number; player: LudoPlayer }>>([]);
@@ -463,6 +473,7 @@ export const PlayLudoPage: React.FC<{
     }
     if (!setupValidation.isValid) return;
     clearAllTimers();
+    resetYardPity();
 
     const initialPlayers: LudoPlayer[] = activeColors.map((color) => {
       const cfg = seatConfig[color];
@@ -841,6 +852,8 @@ export const PlayLudoPage: React.FC<{
       if (!isTrackIndexSafe(landingTrackIdx)) {
         // Look for opponent pawns on this track index
         let totalCapturedTokens = 0;
+        const capturedVictimNames: string[] = [];
+        const capturedVictimColors: LudoColor[] = [];
 
         updatedPlayers = updatedPlayers.map((otherPlayer) => {
           if (otherPlayer.color === player.color) return otherPlayer;
@@ -854,6 +867,8 @@ export const PlayLudoPage: React.FC<{
                 didCapture = true;
                 victimsCount++;
                 totalCapturedTokens++;
+                capturedVictimNames.push(otherPlayer.name);
+                capturedVictimColors.push(otherPlayer.color);
                 logEvent(`💥 ${player.name} knocked out ${otherPlayer.name}'s token! (+5 pts / -5 pts)`);
 
                 // Record structured kill event
@@ -879,10 +894,13 @@ export const PlayLudoPage: React.FC<{
           });
 
           if (victimsCount > 0) {
+            const nextKilledBy = { ...(otherPlayer.killedBy || {}) };
+            nextKilledBy[player.color] = (nextKilledBy[player.color] || 0) + victimsCount;
             return {
               ...otherPlayer,
               tokens: capturedTokens,
-              deaths: (otherPlayer.deaths || 0) + victimsCount
+              deaths: (otherPlayer.deaths || 0) + victimsCount,
+              killedBy: nextKilledBy
             };
           }
 
@@ -890,13 +908,34 @@ export const PlayLudoPage: React.FC<{
         });
 
         if (didCapture && totalCapturedTokens > 0) {
+          // Play energetic knockout sound effect
           ludoAudio.playCapture();
-          // Update attacker's kills
+
+          // Trigger Combat Hotspot Visual Shake
+          setIsCombatShaking(true);
+          setTimeout(() => setIsCombatShaking(false), 480);
+
+          // Trigger Combat Popup (+5 pts kill indicator)
+          setCombatPopup({
+            killerName: player.name,
+            killerColor: player.color,
+            victimName: capturedVictimNames.join(', '),
+            victimColor: capturedVictimColors[0] || 'red',
+            points: 5 * totalCapturedTokens,
+          });
+          setTimeout(() => setCombatPopup(null), 2500);
+
+          // Update attacker's kills and color-coded killedOpponents count
           updatedPlayers = updatedPlayers.map((p) => {
             if (p.color === player.color) {
+              const nextKilledOpponents = { ...(p.killedOpponents || {}) };
+              capturedVictimColors.forEach((vc) => {
+                nextKilledOpponents[vc] = (nextKilledOpponents[vc] || 0) + 1;
+              });
               return {
                 ...p,
-                kills: (p.kills || 0) + totalCapturedTokens
+                kills: (p.kills || 0) + totalCapturedTokens,
+                killedOpponents: nextKilledOpponents
               };
             }
             return p;
@@ -1677,8 +1716,8 @@ export const PlayLudoPage: React.FC<{
           {/* Main Board & Center Stage */}
           <div className="lg:col-span-8 space-y-4">
             
-            {/* Interactive Ludo Board */}
-            <div className="flex justify-center">
+            {/* Interactive Ludo Board with Screen Shake & Combat Hotspot Popup */}
+            <div className={`flex justify-center relative ${isCombatShaking ? 'animate-combat-shake' : ''}`}>
               <LudoBoard
                 players={players}
                 activeColor={turnColor}
@@ -1692,6 +1731,40 @@ export const PlayLudoPage: React.FC<{
                   }
                 }}
               />
+
+              {/* Combat Hotspot Knockout Popup (+5 pts Indicator) */}
+              <AnimatePresence>
+                {combatPopup && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.65, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.75, y: -20 }}
+                    transition={{ type: 'spring', damping: 14, stiffness: 220 }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-full max-w-[320px] px-3"
+                  >
+                    <div className="bg-zinc-950/95 border-2 border-amber-400 rounded-3xl p-4 shadow-2xl ring-4 ring-red-500/50 backdrop-blur-md text-center flex flex-col items-center gap-2">
+                      <div className="flex items-center gap-2 bg-red-600/90 text-white text-[11px] sm:text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                        <Swords className="w-4 h-4 animate-spin shrink-0 text-amber-300" style={{ animationDuration: '3s' }} />
+                        <span>KNOCKOUT! +5 PTS</span>
+                        <Swords className="w-4 h-4 animate-spin shrink-0 text-amber-300" style={{ animationDuration: '3s' }} />
+                      </div>
+                      <div className="text-sm sm:text-base font-black text-white flex items-center justify-center gap-1.5 flex-wrap">
+                        <span className="text-emerald-400">{combatPopup.killerName}</span>
+                        <span className="text-zinc-400 text-xs font-medium">knocked out</span>
+                        <span className="text-rose-400">{combatPopup.victimName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-bold">
+                        <span className="text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                          +5 PTS Kill Bonus
+                        </span>
+                        <span className="text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded-md border border-rose-500/30">
+                          -5 PTS Penalty
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* ================= MERGED CURRENT TURN & DICE CONTROLLER CARD ================= */}

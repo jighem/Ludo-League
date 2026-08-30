@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useLeague } from '../context/LeagueContext';
 import { Swords, Users, Trophy, ChevronRight, BarChart2 } from 'lucide-react';
 
@@ -28,11 +29,12 @@ export const HeadToHeadPage: React.FC = () => {
   const fetchPlayers = async () => {
     try {
       const res = await apiRequest<{ players: Player[] }>('/players?status=active');
-      setPlayers(res.players);
-      if (res.players.length >= 2) {
-        setP1Id(String(res.players[0].id));
-        setP2Id(String(res.players[1].id));
-        setSelectedMultiIds(res.players.slice(0, 4).map((p) => p.id));
+      const humanList = filterHumanPlayers(res.players || []);
+      setPlayers(humanList);
+      if (humanList.length >= 2) {
+        setP1Id(String(humanList[0].id));
+        setP2Id(String(humanList[1].id));
+        setSelectedMultiIds(humanList.slice(0, 4).map((p) => p.id));
       }
     } catch (err) {
       console.error('Failed to load players for comparison:', err);

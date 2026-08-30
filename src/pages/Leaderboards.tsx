@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LeaderboardItem } from '../types';
 import { apiRequest } from '../api/client';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useLeague } from '../context/LeagueContext';
 import { Trophy, Download, Calendar, Info, Award, Filter, ShieldCheck, Crown, RefreshCw, Swords, Crosshair, Skull } from 'lucide-react';
 
@@ -44,7 +45,7 @@ export const Leaderboards: React.FC<LeaderboardsProps> = ({ onSelectPlayer }) =>
       }
 
       const res = await apiRequest<{ leaderboard: LeaderboardItem[]; minQualificationThreshold: number }>(endpoint);
-      setLeaderboard(res.leaderboard);
+      setLeaderboard(filterHumanPlayers(res.leaderboard || []));
       setMinQualThreshold(res.minQualificationThreshold);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch leaderboard.');

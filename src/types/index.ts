@@ -32,6 +32,7 @@ export interface Player {
   email: string | null;
   date_joined: string;
   is_active: number;
+  is_bot?: number | boolean;
   total_matches?: number;
   created_at?: string;
 }
@@ -54,6 +55,7 @@ export interface MatchResult {
   points_awarded: number;
   kills: number;
   deaths: number;
+  is_bot?: number | boolean;
 }
 
 export interface Match {

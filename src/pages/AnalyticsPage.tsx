@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useLeague } from '../context/LeagueContext';
 import {
   ResponsiveContainer,
@@ -93,7 +94,7 @@ export const AnalyticsPage: React.FC<{ onSelectPlayer?: (playerId: number) => vo
   const fetchPlayers = async () => {
     try {
       const res = await apiRequest<{ players: Player[] }>('/players?status=active');
-      setPlayers(res.players || []);
+      setPlayers(filterHumanPlayers(res.players || []));
     } catch (err) {
       console.error('Failed to fetch players:', err);
     }

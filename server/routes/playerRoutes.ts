@@ -4,10 +4,10 @@ import { authenticateToken, optionalAuthenticateToken, requireRole, logAudit, Au
 
 const router = Router();
 
-// List players with optional search and active status filter
+// List players with optional search and active status filter (Excludes bots by default)
 router.get('/', optionalAuthenticateToken, async (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, include_bots } = req.query;
     let sql = `
       SELECT p.*,
         (SELECT COUNT(*) FROM match_results mr JOIN matches m ON mr.match_id = m.id WHERE mr.player_id = p.id AND m.is_deleted = 0) as total_matches,
@@ -17,6 +17,16 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
       WHERE 1=1
     `;
     const params: any[] = [];
+
+    // Filter out bots from all standard player listings unless explicitly requested
+    if (include_bots !== 'true') {
+      sql += ` AND (p.is_bot = 0 OR p.is_bot IS NULL) 
+               AND LOWER(p.full_name) NOT LIKE 'bot %' 
+               AND LOWER(p.full_name) NOT LIKE 'bot-%' 
+               AND LOWER(p.full_name) NOT LIKE '%(ai)%' 
+               AND LOWER(p.full_name) NOT LIKE '%[bot]%' 
+               AND LOWER(p.full_name) != 'bot'`;
+    }
 
     if (status === 'active') {
       sql += ' AND p.is_active = 1';
@@ -41,27 +51,40 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
 // Ensure a player exists by name (case-insensitive) or create one (useful for bots/guests)
 router.post('/ensure', optionalAuthenticateToken, async (req, res) => {
   try {
-    const { name, nickname } = req.body;
+    const { name, nickname, is_bot } = req.body;
     if (!name || !String(name).trim()) {
       return res.status(400).json({ error: 'Player name is required' });
     }
     const cleanName = String(name).trim();
+    const isBot =
+      is_bot === 1 ||
+      is_bot === true ||
+      /^bot(\s|-|$)/i.test(cleanName) ||
+      /\(ai\)/i.test(cleanName) ||
+      /\[bot\]/i.test(cleanName) ||
+      cleanName.toLowerCase() === 'bot';
+
     const existing = await query<any>('SELECT * FROM players WHERE LOWER(full_name) = LOWER(?)', [cleanName]);
     if (existing.length > 0) {
+      if (isBot && !existing[0].is_bot) {
+        await execute('UPDATE players SET is_bot = 1 WHERE id = ?', [existing[0].id]);
+        existing[0].is_bot = 1;
+      }
       return res.json({ player: existing[0], created: false });
     }
     const dateJoined = new Date().toISOString().split('T')[0];
     const result = await execute(
-      `INSERT INTO players (full_name, nickname, date_joined, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [cleanName, nickname ? String(nickname).trim() : null, dateJoined]
+      `INSERT INTO players (full_name, nickname, date_joined, is_active, is_bot, created_at, updated_at)
+       VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [cleanName, nickname ? String(nickname).trim() : null, dateJoined, isBot ? 1 : 0]
     );
     const newPlayer = {
       id: result.insertId,
       full_name: cleanName,
       nickname: nickname ? String(nickname).trim() : null,
       date_joined: dateJoined,
-      is_active: 1
+      is_active: 1,
+      is_bot: isBot ? 1 : 0
     };
     return res.json({ player: newPlayer, created: true });
   } catch (err: any) {

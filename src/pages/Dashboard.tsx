@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LeaderboardItem, Match } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { useLeague } from '../context/LeagueContext';
@@ -116,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     highestWinRatePlayer: 'None'
   };
 
-  const leaderboard = data?.leaderboard || [];
+  const leaderboard = filterHumanPlayers(data?.leaderboard || []);
   const latestMatch = data?.latestMatch;
 
   return (

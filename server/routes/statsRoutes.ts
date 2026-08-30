@@ -66,12 +66,26 @@ export async function calculateLeaderboard(options: {
       WHERE m.is_deleted = 0 ${dateFilter}
     ) ar ON p.id = ar.player_id
     WHERE p.is_active = 1
+      AND (p.is_bot = 0 OR p.is_bot IS NULL)
+      AND LOWER(p.full_name) NOT LIKE 'bot %'
+      AND LOWER(p.full_name) NOT LIKE 'bot-%'
+      AND LOWER(p.full_name) NOT LIKE '%(ai)%'
+      AND LOWER(p.full_name) NOT LIKE '%[bot]%'
+      AND LOWER(p.full_name) != 'bot'
     GROUP BY p.id, p.full_name, p.nickname, p.profile_photo, p.is_active
   `;
 
   const rows = await query<any>(sql, params);
 
-  const leaderboard = rows.map((r) => {
+  const leaderboard = rows
+    .filter((r) => {
+      const name = (r.full_name || '').toLowerCase().trim();
+      const nick = (r.nickname || '').toLowerCase().trim();
+      if (name.startsWith('bot ') || name.startsWith('bot-') || name.startsWith('[bot]') || name === 'bot' || name.includes('(ai)')) return false;
+      if (nick.startsWith('bot ') || nick.startsWith('bot-') || nick.startsWith('[bot]') || nick === 'bot' || nick.includes('(ai)')) return false;
+      return true;
+    })
+    .map((r) => {
     const totalMatches = Number(r.total_matches) || 0;
     const totalPoints = Number(r.total_points) || 0;
     const avgScore = totalMatches > 0 ? Number((totalPoints / totalMatches).toFixed(2)) : 0;
@@ -198,12 +212,28 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
         `SELECT COUNT(DISTINCT mr.player_id) as count
          FROM match_results mr
          JOIN matches m ON mr.match_id = m.id
-         WHERE m.league_id = ? AND m.is_deleted = 0`,
+         JOIN players p ON mr.player_id = p.id
+         WHERE m.league_id = ? AND m.is_deleted = 0
+           AND (p.is_bot = 0 OR p.is_bot IS NULL)
+           AND LOWER(p.full_name) NOT LIKE 'bot %'
+           AND LOWER(p.full_name) NOT LIKE 'bot-%'
+           AND LOWER(p.full_name) NOT LIKE '%(ai)%'
+           AND LOWER(p.full_name) NOT LIKE '%[bot]%'
+           AND LOWER(p.full_name) != 'bot'`,
         [leagueId]
       );
       activePlayersCount = activeInLeagueRes[0]?.count || 0;
     } else {
-      const activePlayersRes = await query<{ count: number }>('SELECT COUNT(*) as count FROM players WHERE is_active = 1');
+      const activePlayersRes = await query<{ count: number }>(
+        `SELECT COUNT(*) as count FROM players
+         WHERE is_active = 1
+           AND (is_bot = 0 OR is_bot IS NULL)
+           AND LOWER(full_name) NOT LIKE 'bot %'
+           AND LOWER(full_name) NOT LIKE 'bot-%'
+           AND LOWER(full_name) NOT LIKE '%(ai)%'
+           AND LOWER(full_name) NOT LIKE '%[bot]%'
+           AND LOWER(full_name) != 'bot'`
+      );
       activePlayersCount = activePlayersRes[0]?.count || 0;
     }
 
@@ -749,6 +779,12 @@ router.get('/monthly-awards', optionalAuthenticateToken, async (req, res) => {
       JOIN matches m ON mr.match_id = m.id
       JOIN players p ON mr.player_id = p.id
       WHERE m.is_deleted = 0 AND m.match_date LIKE ?
+        AND (p.is_bot = 0 OR p.is_bot IS NULL)
+        AND LOWER(p.full_name) NOT LIKE 'bot %'
+        AND LOWER(p.full_name) NOT LIKE 'bot-%'
+        AND LOWER(p.full_name) NOT LIKE '%(ai)%'
+        AND LOWER(p.full_name) NOT LIKE '%[bot]%'
+        AND LOWER(p.full_name) != 'bot'
     `;
     const singleMatchKillParams: any[] = [`${monthStr}%`];
     if (leagueId && !isNaN(leagueId)) {
@@ -950,13 +986,35 @@ router.get('/charts', optionalAuthenticateToken, async (req, res) => {
       JOIN match_results mr ON m.id = mr.match_id
       JOIN players p ON mr.player_id = p.id
       ${matchFilterSql}
+      AND (p.is_bot = 0 OR p.is_bot IS NULL)
+      AND LOWER(p.full_name) NOT LIKE 'bot %'
+      AND LOWER(p.full_name) NOT LIKE 'bot-%'
+      AND LOWER(p.full_name) NOT LIKE '%(ai)%'
+      AND LOWER(p.full_name) NOT LIKE '%[bot]%'
+      AND LOWER(p.full_name) != 'bot'
       ORDER BY m.match_date ASC, m.match_time ASC, m.id ASC
     `, matchFilterParams);
 
-    // 2. Fetch all players list
-    const playersList = await query<any>(`
-      SELECT id, full_name, nickname, is_active FROM players WHERE is_active = 1 ORDER BY full_name ASC
+    // 2. Fetch all players list (excluding bots)
+    const rawPlayersList = await query<any>(`
+      SELECT id, full_name, nickname, is_active FROM players 
+      WHERE is_active = 1 
+        AND (is_bot = 0 OR is_bot IS NULL)
+        AND LOWER(full_name) NOT LIKE 'bot %'
+        AND LOWER(full_name) NOT LIKE 'bot-%'
+        AND LOWER(full_name) NOT LIKE '%(ai)%'
+        AND LOWER(full_name) NOT LIKE '%[bot]%'
+        AND LOWER(full_name) != 'bot'
+      ORDER BY full_name ASC
     `);
+
+    const playersList = rawPlayersList.filter((p: any) => {
+      const name = (p.full_name || '').toLowerCase().trim();
+      const nick = (p.nickname || '').toLowerCase().trim();
+      if (name.startsWith('bot ') || name.startsWith('bot-') || name.startsWith('[bot]') || name === 'bot' || name.includes('(ai)')) return false;
+      if (nick.startsWith('bot ') || nick.startsWith('bot-') || nick.startsWith('[bot]') || nick === 'bot' || nick.includes('(ai)')) return false;
+      return true;
+    });
 
     // 3. Player Cumulative Points Average Evolution
     // Build a match-by-match running tally per player

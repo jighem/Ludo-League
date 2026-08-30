@@ -20,6 +20,7 @@ import { rollFairDice, resetYardPity } from '../utils/diceEngine';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { Player, ScoringRule } from '../types';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { apiRequest } from '../api/client';
 import {
   saveActiveLudoSession,
@@ -311,16 +312,17 @@ export const PlayLudoPage: React.FC<{
     const loadInitialData = async () => {
       try {
         const pRes = await apiRequest<{ players: Player[] }>('/players?status=active');
-        setRosterPlayers(pRes.players);
+        const humanRoster = filterHumanPlayers(pRes.players || []);
+        setRosterPlayers(humanRoster);
 
-        if (pRes.players.length > 0) {
+        if (humanRoster.length > 0) {
           // Pre-populate human seats with first few players
           setSeatConfig((prev) => ({
             ...prev,
-            red: { ...prev.red, playerId: String(pRes.players[0].id) },
-            green: { ...prev.green, playerId: pRes.players[1] ? String(pRes.players[1].id) : '' },
-            yellow: { ...prev.yellow, playerId: pRes.players[2] ? String(pRes.players[2].id) : '' },
-            blue: { ...prev.blue, playerId: pRes.players[3] ? String(pRes.players[3].id) : '' }
+            red: { ...prev.red, playerId: String(humanRoster[0].id) },
+            green: { ...prev.green, playerId: humanRoster[1] ? String(humanRoster[1].id) : '' },
+            yellow: { ...prev.yellow, playerId: humanRoster[2] ? String(humanRoster[2].id) : '' },
+            blue: { ...prev.blue, playerId: humanRoster[3] ? String(humanRoster[3].id) : '' }
           }));
         }
 

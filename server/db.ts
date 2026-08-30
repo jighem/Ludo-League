@@ -137,6 +137,29 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE matches ADD COLUMN kill_logs LONGTEXT NULL AFTER action_logs;`);
         }
 
+        // Check if is_bot column exists on players table
+        const [botCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'players' AND COLUMN_NAME = 'is_bot';
+        `);
+        if (botCols.length === 0) {
+          console.log('Adding is_bot column to MySQL players table...');
+          await mysqlPool.query(`ALTER TABLE players ADD COLUMN is_bot TINYINT(1) NOT NULL DEFAULT 0 AFTER is_active;`);
+          await mysqlPool.query(`ALTER TABLE players ADD INDEX idx_is_bot (is_bot);`);
+        }
+
+        // Mark all Bot / AI players with is_bot = 1
+        await mysqlPool.query(`
+          UPDATE players 
+          SET is_bot = 1 
+          WHERE LOWER(full_name) LIKE 'bot %' 
+             OR LOWER(full_name) LIKE '%(ai)%' 
+             OR LOWER(full_name) LIKE '%[bot]%' 
+             OR LOWER(full_name) = 'bot' 
+             OR LOWER(nickname) LIKE '%bot%' 
+             OR LOWER(nickname) LIKE '%(ai)%';
+        `);
+
         // Ensure default AC Ludo League 1 exists
         await mysqlPool.query(`
           INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
@@ -200,6 +223,7 @@ function initEmbeddedSchema() {
       email TEXT,
       date_joined DATE NOT NULL,
       is_active INTEGER NOT NULL DEFAULT 1,
+      is_bot INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -353,6 +377,16 @@ function initEmbeddedSchema() {
     // Already exists or fresh db
   }
 
+  try {
+    const tableInfoPl = sqlJsDb.exec("PRAGMA table_info('players');");
+    const colsPl = tableInfoPl[0]?.values?.map((v: any) => v[1]) || [];
+    if (!colsPl.includes('is_bot')) {
+      sqlJsDb.exec('ALTER TABLE players ADD COLUMN is_bot INTEGER NOT NULL DEFAULT 0;');
+    }
+  } catch (err) {
+    // Already exists or fresh db
+  }
+
   // Update legacy app name to Ludo League Master
   try {
     sqlJsDb.exec(`
@@ -367,12 +401,22 @@ function initEmbeddedSchema() {
   // Ensure default AI Bots exist in players table so Ludo play matches have distinct IDs
   try {
     sqlJsDb.exec(`
-      INSERT OR IGNORE INTO players (id, full_name, nickname, date_joined, is_active) VALUES
-      (1, 'Jignesh Panchal', 'Master', '2026-01-01', 1),
-      (2, 'Bot Red (AI)', 'Red AI', '2026-01-01', 1),
-      (3, 'Bot Green (AI)', 'Green AI', '2026-01-01', 1),
-      (4, 'Bot Yellow (AI)', 'Yellow AI', '2026-01-01', 1),
-      (5, 'Bot Blue (AI)', 'Blue AI', '2026-01-01', 1);
+      INSERT OR IGNORE INTO players (id, full_name, nickname, date_joined, is_active, is_bot) VALUES
+      (1, 'Jignesh Panchal', 'Master', '2026-01-01', 1, 0),
+      (2, 'Bot Red (AI)', 'Red AI', '2026-01-01', 1, 1),
+      (3, 'Bot Green (AI)', 'Green AI', '2026-01-01', 1, 1),
+      (4, 'Bot Yellow (AI)', 'Yellow AI', '2026-01-01', 1, 1),
+      (5, 'Bot Blue (AI)', 'Blue AI', '2026-01-01', 1, 1);
+    `);
+    sqlJsDb.exec(`
+      UPDATE players 
+      SET is_bot = 1 
+      WHERE LOWER(full_name) LIKE 'bot %' 
+         OR LOWER(full_name) LIKE '%(ai)%' 
+         OR LOWER(full_name) LIKE '%[bot]%' 
+         OR LOWER(full_name) = 'bot' 
+         OR LOWER(nickname) LIKE '%bot%' 
+         OR LOWER(nickname) LIKE '%(ai)%';
     `);
   } catch (err) {
     // ignore

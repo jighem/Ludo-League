@@ -121,22 +121,36 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
       let pid = Number(r.player_id);
       const pos = Number(r.position);
 
+      const fallbackName = r.player_name?.trim() || `Bot ${i + 1} (AI)`;
+      const isBot =
+        r.is_bot === 1 ||
+        r.is_bot === true ||
+        r.isBot === true ||
+        /^bot(\s|-|$)/i.test(fallbackName) ||
+        /\(ai\)/i.test(fallbackName) ||
+        /\[bot\]/i.test(fallbackName);
+
       if (!pid || isNaN(pid) || usedPlayerIds.has(pid)) {
         // Auto-create or find a distinct player for this seat
-        const fallbackName = r.player_name?.trim() || `Bot ${i + 1} (AI)`;
-        const existing = await query<any>('SELECT id FROM players WHERE LOWER(full_name) = LOWER(?)', [fallbackName]);
+        const existing = await query<any>('SELECT id, is_bot FROM players WHERE LOWER(full_name) = LOWER(?)', [fallbackName]);
         if (existing.length > 0 && !usedPlayerIds.has(Number(existing[0].id))) {
           pid = Number(existing[0].id);
+          if (isBot && !existing[0].is_bot) {
+            await execute('UPDATE players SET is_bot = 1 WHERE id = ?', [pid]);
+          }
         } else {
           const uniqueName = usedPlayerIds.has(pid) ? `${fallbackName} ${i + 1}` : fallbackName;
           const dateJoined = new Date().toISOString().split('T')[0];
           const insRes = await execute(
-            `INSERT INTO players (full_name, date_joined, is_active, created_at, updated_at)
-             VALUES (?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-            [uniqueName, dateJoined]
+            `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
+             VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [uniqueName, dateJoined, isBot ? 1 : 0]
           );
           pid = insRes.insertId;
         }
+      } else if (isBot) {
+        // Ensure flagged as bot
+        await execute('UPDATE players SET is_bot = 1 WHERE id = ?', [pid]);
       }
 
       usedPlayerIds.add(pid);

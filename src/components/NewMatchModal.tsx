@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Player, ScoringRule } from '../types';
 import { apiRequest } from '../api/client';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useLeague } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { AddPlayerModal } from './AddPlayerModal';
@@ -117,7 +118,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({ isOpen, onClose, o
   const fetchInitialData = async () => {
     try {
       const pRes = await apiRequest<{ players: Player[] }>('/players?status=active');
-      setPlayers(pRes.players);
+      setPlayers(filterHumanPlayers(pRes.players || []));
 
       const sRes = await apiRequest<{ scoringRules: ScoringRule[] }>('/settings');
       if (sRes.scoringRules) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { AddPlayerModal } from '../components/AddPlayerModal';
@@ -52,7 +53,7 @@ export const PlayersPage: React.FC<PlayersPageProps> = ({ onSelectPlayer }) => {
       let endpoint = `/players?search=${encodeURIComponent(search)}`;
       if (statusFilter !== 'all') endpoint += `&status=${statusFilter}`;
       const res = await apiRequest<{ players: Player[] }>(endpoint);
-      setPlayers(res.players);
+      setPlayers(filterHumanPlayers(res.players || []));
     } catch (err) {
       console.error('Failed to load players:', err);
     } finally {

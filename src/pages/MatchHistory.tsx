@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Match, Player } from '../types';
 import { apiRequest } from '../api/client';
 import { formatDateStr } from '../utils/date';
+import { filterHumanPlayers } from '../utils/playerUtils';
 import { useAuth } from '../context/AuthContext';
 import { useLeague } from '../context/LeagueContext';
 import { EditMatchModal } from '../components/EditMatchModal';
@@ -107,7 +108,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
   const fetchPlayers = async () => {
     try {
       const res = await apiRequest<{ players: Player[] }>('/players');
-      setPlayers(res.players);
+      setPlayers(filterHumanPlayers(res.players || []));
     } catch (err) {
       // ignore
     }

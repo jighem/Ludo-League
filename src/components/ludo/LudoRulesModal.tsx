@@ -175,7 +175,7 @@ export const LudoRulesModal: React.FC<LudoRulesModalProps> = ({ isOpen, onClose 
                 <li className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
                   <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-amber-900 dark:text-amber-200">Four 6s Rule:</strong> Rolling four consecutive 6s automatically forfeits the fourth roll to prevent infinite rolling streaks and maintain competitive fairness.
+                    <strong className="text-amber-900 dark:text-amber-200">Three Consecutive 6s Rule:</strong> Rolling three consecutive 6s automatically forfeits the 3rd roll to prevent infinite rolling streaks, evaluated purely in the rules engine after fair dice generation.
                   </div>
                 </li>
               </ul>
@@ -230,6 +230,9 @@ export const LudoRulesModal: React.FC<LudoRulesModalProps> = ({ isOpen, onClose 
                     <strong className="text-zinc-900 dark:text-white">🚀 Starting Tiles:</strong> Each color's initial release square is an immune safe point.
                   </div>
                 </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pt-1">
+                  🛡️ <strong>Stacking Rules:</strong> Multiple tokens of the same color can safely share Safe Zones (Stars, Start Cells, and Home Stretches). On unsafe open track squares, the dice and movement engine prevents same-color tokens from sharing the same square to protect against multi-token knockouts.
+                </p>
               </div>
             </div>
           )}

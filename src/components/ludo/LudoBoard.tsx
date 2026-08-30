@@ -47,7 +47,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   // Determine movable tokens for the active player
   const movableTokenIds = useMemo(() => {
     if (!waitingForMove || !diceValue || !activePlayer || isRolling || walkingTokenKey) return new Set<number>();
-    const valid = activePlayer.tokens.filter((t) => canTokenMove(t, diceValue));
+    const valid = activePlayer.tokens.filter((t) => canTokenMove(t, diceValue, activePlayer));
     return new Set(valid.map((t) => t.id));
   }, [waitingForMove, diceValue, activePlayer, isRolling, walkingTokenKey]);
 

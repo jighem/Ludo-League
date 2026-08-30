@@ -590,8 +590,8 @@ export const PlayLudoPage: React.FC<{
       botRollTimerRef.current = null;
     }
 
-    // 2. Sequence Step 1: Generate fair random result ONCE via Centralized Dice Engine
-    const generatedRoll = rollFairDice();
+    // 2. Sequence Step 1: Generate fair random result ONCE via Centralized Dice Engine (with Approach B unsafe same-color collision avoidance)
+    const generatedRoll = rollFairDice(currentPlayer);
     pendingRollValueRef.current = generatedRoll;
 
     // 3. Sequence Step 2: Lock state and trigger visual animation
@@ -620,11 +620,11 @@ export const PlayLudoPage: React.FC<{
       setIsTurnLocked(true);
 
       // 6. Sequence Step 5: Ludo Rules Engine processes rules based on the rolled value
-      // Check 4 consecutive sixes rule
+      // Check 3 consecutive sixes rule (Standard Ludo Rule: 3rd six forfeits the turn)
       let newConsecutiveSixes = rolled === 6 ? currentPlayer.consecutiveSixes + 1 : 0;
-      if (newConsecutiveSixes === 4) {
-        logEvent(`⚠️ ${currentPlayer.name} rolled four 6s in a row! Turn skipped.`);
-        setActiveTurnNotice(`Four consecutive 6s! Turn forfeited.`);
+      if (newConsecutiveSixes === 3) {
+        logEvent(`⚠️ ${currentPlayer.name} rolled three 6s in a row! 3rd consecutive 6 rule: turn forfeited.`);
+        setActiveTurnNotice(`Three consecutive 6s! Turn forfeited.`);
         
         // Reset player consecutive sixes and pass turn
         const updatedPlayers = playersRef.current.map((p) =>
@@ -757,7 +757,7 @@ export const PlayLudoPage: React.FC<{
     waitingForMoveRef.current = false;
 
     const player = currentPlayers.find((p) => p.color === tokenToMove.color);
-    if (!player || !canTokenMove(tokenToMove, steps)) return;
+    if (!player || !canTokenMove(tokenToMove, steps, player)) return;
 
     const tokenKey = `${tokenToMove.color}-${tokenToMove.id}`;
     setWalkingTokenKey(tokenKey);

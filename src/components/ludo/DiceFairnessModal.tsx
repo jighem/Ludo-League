@@ -111,7 +111,7 @@ export const DiceFairnessModal: React.FC<DiceFairnessModalProps> = ({ isOpen, on
 
               {/* Sample Size Selector */}
               <div className="flex items-center gap-1.5 bg-zinc-200/70 dark:bg-zinc-800 p-1 rounded-xl">
-                {[10000, 100000, 250000].map((size) => (
+                {[50000, 100000, 250000, 500000].map((size) => (
                   <button
                     key={size}
                     onClick={() => {

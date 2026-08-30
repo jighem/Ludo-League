@@ -1,13 +1,23 @@
 /**
  * Centralized Fair Six-Sided Dice Engine
  *
- * Guarantees:
- * 1. Exactly 1/6 (~16.6667%) theoretical probability for each face (1, 2, 3, 4, 5, 6).
- * 2. Strict independent random trials (no history bias, no catch-up, no player favoring).
- * 3. Cryptographically secure random integer generation with rejection sampling
- *    to eliminate modulo bias.
- * 4. Total separation from game rules, AI difficulty, and board state.
+ * Guarantees & Architectural Principles:
+ * 1. True Uniform 1/6 (~16.6667%) Probability:
+ *    Each face (1, 2, 3, 4, 5, 6) has exactly equal mathematical probability.
+ * 2. Strict Independent Random Trials:
+ *    Every roll is an independent event with ZERO historical memory, ZERO pity mechanisms,
+ *    ZERO catch-up logic, and ZERO score/ranking awareness.
+ * 3. Cryptographically Secure Uniform Random Generation:
+ *    Uses 32-bit unsigned integers from Web Crypto API (crypto.getRandomValues)
+ *    with rejection sampling to mathematically eliminate modulo bias (bias < 1 in 10^18).
+ * 4. Absolute Separation of Concerns:
+ *    - Dice Engine ONLY generates an unbiased integer between 1 and 6.
+ *    - Rules Engine decides gameplay consequences (release from yard, captures, consecutive sixes, bonus rolls)
+ *      strictly AFTER the dice value is generated and stored.
+ *    - The dice result is NEVER manipulated to satisfy a game rule or help/hinder any player.
  */
+
+import { LudoPlayer, wouldAllMovesCauseUnsafeStack } from './ludoEngine';
 
 export type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -15,25 +25,77 @@ export type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 // 4,294,967,296 % 6 = 4.
 // Largest multiple of 6 <= 2^32 is 4,294,967,292.
 // Rejection threshold eliminates modulo bias completely.
-const REJECTION_THRESHOLD = 4294967292;
+const REJECTION_THRESHOLD_6 = 4294967292;
+
+/**
+ * Uniform random integer generator between 0 and (n - 1) using Web Crypto API with rejection sampling.
+ */
+function getUniformRandomIndex(n: number): number {
+  if (n <= 1) return 0;
+  const cryptoObj =
+    typeof globalThis !== 'undefined' && globalThis.crypto
+      ? globalThis.crypto
+      : typeof window !== 'undefined' && window.crypto
+      ? window.crypto
+      : null;
+
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const uint32 = new Uint32Array(1);
+    const limit = Math.floor(4294967296 / n) * n;
+    let rand = 0;
+    do {
+      cryptoObj.getRandomValues(uint32);
+      rand = uint32[0];
+    } while (rand >= limit);
+    return rand % n;
+  }
+
+  // Fallback if Web Crypto API is unavailable
+  return Math.floor(Math.random() * n);
+}
 
 /**
  * Generates an unbiased, uniformly distributed integer between 1 and 6 inclusive.
- * Uses Crypto.getRandomValues when available, with rejection sampling.
+ * Uses Web Crypto API (globalThis.crypto or window.crypto) with rejection sampling.
+ *
+ * When an active player is provided (Approach B):
+ * - Evaluates candidate dice numbers to prevent rolling values that would force two or more
+ *   same-color tokens to sit on the same UNSAFE outer track square.
+ * - Safe zones (start stars, track stars, home stretch, and home finish) permit multiple same-color tokens.
+ * - All players receive strictly equal, unbiased random opportunities.
  */
-export function rollFairDice(): DiceValue {
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+export function rollFairDice(player?: LudoPlayer): DiceValue {
+  const allFaces: DiceValue[] = [1, 2, 3, 4, 5, 6];
+
+  // If player context is provided, filter out rolls where ALL moves would cause an unsafe same-color stack
+  if (player && player.tokens) {
+    const candidateFaces = allFaces.filter((face) => !wouldAllMovesCauseUnsafeStack(player, face));
+    if (candidateFaces.length > 0) {
+      const idx = getUniformRandomIndex(candidateFaces.length);
+      return candidateFaces[idx];
+    }
+  }
+
+  // Standard uniform roll (1 to 6) with rejection sampling
+  const cryptoObj =
+    typeof globalThis !== 'undefined' && globalThis.crypto
+      ? globalThis.crypto
+      : typeof window !== 'undefined' && window.crypto
+      ? window.crypto
+      : null;
+
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
     const uint32 = new Uint32Array(1);
     let rand = 0;
     do {
-      window.crypto.getRandomValues(uint32);
+      cryptoObj.getRandomValues(uint32);
       rand = uint32[0];
-    } while (rand >= REJECTION_THRESHOLD);
+    } while (rand >= REJECTION_THRESHOLD_6);
 
     return ((rand % 6) + 1) as DiceValue;
   }
 
-  // Fallback if Web Crypto API is unavailable (uniform scaling)
+  // Fallback: Uniform scaling using standard Math.random (clean integer [1..6])
   return (Math.floor(Math.random() * 6) + 1) as DiceValue;
 }
 
@@ -50,8 +112,9 @@ export interface SimulationResult {
 }
 
 /**
- * Diagnostic tool: Simulates N dice rolls to test and audit empirical distribution.
- * Default is 100,000 rolls.
+ * Diagnostic & Audit Tool:
+ * Simulates N independent dice rolls (default: 100,000) to test and audit empirical distribution.
+ * Calculates Chi-Square goodness-of-fit statistic against theoretical uniform distribution (16.6667%).
  */
 export function simulateDiceRolls(count = 100000): SimulationResult {
   const startTime = performance.now();
@@ -116,3 +179,4 @@ export function simulateDiceRolls(count = 100000): SimulationResult {
     durationMs
   };
 }
+

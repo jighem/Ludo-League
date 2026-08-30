@@ -295,18 +295,76 @@ export function getActualTrackIndex(color: LudoColor, step: number): number | nu
 }
 
 /**
- * Checks if a token can make a legal move with the given rolled dice number.
+ * Checks whether moving a token by the given dice roll would cause two or more
+ * tokens of the SAME color to land on the same UNSAFE outer track square.
+ * Safe zones (the 8 starting & star cells, home stretch 51-55, and home finish 56)
+ * are exempt and allow multiple same-color tokens.
  */
-export function canTokenMove(token: LudoToken, dice: number): boolean {
-  return calculateTargetStep(token, dice) !== null;
+export function wouldMoveCauseSameColorUnsafeStack(
+  player: LudoPlayer,
+  token: LudoToken,
+  dice: number
+): boolean {
+  const targetStep = calculateTargetStep(token, dice);
+  if (targetStep === null) return false;
+
+  // On perimeter track (steps 0..50)
+  if (targetStep >= 0 && targetStep <= 50) {
+    const startTrackIdx = COLOR_START_INDICES[player.color];
+    const landingTrackIdx = (startTrackIdx + targetStep) % 52;
+
+    // Safe stars & base start cells are safe zones - stacking is allowed
+    if (isTrackIndexSafe(landingTrackIdx)) {
+      return false;
+    }
+
+    // Unsafe track square: Check if another token of the SAME color currently occupies this square
+    return player.tokens.some(
+      (otherToken) =>
+        otherToken.id !== token.id &&
+        otherToken.step >= 0 &&
+        otherToken.step <= 50 &&
+        otherToken.step === targetStep
+    );
+  }
+
+  // Home stretch (51..55) and Home Finish (56) are Safe Zones - stacking allowed
+  return false;
 }
 
 /**
- * Returns all movable tokens for a player with the given dice roll.
+ * Checks if a token can make a legal move with the given rolled dice number.
+ * If player context is provided, prevents moving to an unsafe square already occupied
+ * by another same-color token.
+ */
+export function canTokenMove(token: LudoToken, dice: number, player?: LudoPlayer): boolean {
+  if (calculateTargetStep(token, dice) === null) return false;
+  if (player && wouldMoveCauseSameColorUnsafeStack(player, token, dice)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Returns all movable tokens for a player with the given dice roll,
+ * strictly filtering out moves that would cause multiple same-color tokens to sit on an unsafe square.
  */
 export function getMovableTokens(player: LudoPlayer, dice: number): LudoToken[] {
   if (!dice) return [];
-  return player.tokens.filter((t) => canTokenMove(t, dice));
+  return player.tokens.filter((t) => canTokenMove(t, dice, player));
+}
+
+/**
+ * Evaluates whether ALL possible moves for a candidate dice roll would cause
+ * an unsafe same-color stack (leaving 0 safe legal moves).
+ * Used by the dice engine (Approach B) to filter out rolls that would force same-color stacking on unsafe squares.
+ */
+export function wouldAllMovesCauseUnsafeStack(player: LudoPlayer, dice: number): boolean {
+  const physicallyMovableTokens = player.tokens.filter((t) => calculateTargetStep(t, dice) !== null);
+  if (physicallyMovableTokens.length === 0) return false;
+
+  // If every movable token would land on an unsafe square occupied by another same-color token
+  return physicallyMovableTokens.every((t) => wouldMoveCauseSameColorUnsafeStack(player, t, dice));
 }
 
 /**

@@ -15,7 +15,9 @@ import {
   Edit2,
   Lock,
   Save,
-  ShieldAlert
+  ShieldAlert,
+  Swords,
+  Skull
 } from 'lucide-react';
 
 interface EditMatchModalProps {
@@ -102,6 +104,14 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
     4: ''
   });
 
+  // Combat Stats (Kills and Deaths) mapped to position (1, 2, 3, 4)
+  const [combatStats, setCombatStats] = useState<Record<number, { kills: number; deaths: number }>>({
+    1: { kills: 0, deaths: 0 },
+    2: { kills: 0, deaths: 0 },
+    3: { kills: 0, deaths: 0 },
+    4: { kills: 0, deaths: 0 }
+  });
+
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [addPlayerModalOpen, setAddPlayerModalOpen] = useState(false);
@@ -121,14 +131,26 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
     setNotes(m.notes || '');
 
     const posMap: Record<number, string> = { 1: '', 2: '', 3: '', 4: '' };
+    const combatMap: Record<number, { kills: number; deaths: number }> = {
+      1: { kills: 0, deaths: 0 },
+      2: { kills: 0, deaths: 0 },
+      3: { kills: 0, deaths: 0 },
+      4: { kills: 0, deaths: 0 }
+    };
+
     if (m.results && Array.isArray(m.results)) {
       m.results.forEach((r) => {
         if (r.position >= 1 && r.position <= 4) {
           posMap[r.position] = String(r.player_id);
+          combatMap[r.position] = {
+            kills: Math.max(0, Number(r.kills) || 0),
+            deaths: Math.max(0, Number(r.deaths) || 0)
+          };
         }
       });
     }
     setSelectedPlayers(posMap);
+    setCombatStats(combatMap);
     setError('');
   };
 
@@ -166,6 +188,16 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
     setSelectedPlayers((prev) => ({
       ...prev,
       [position]: playerId
+    }));
+  };
+
+  const handleCombatChange = (position: number, field: 'kills' | 'deaths', val: number) => {
+    setCombatStats((prev) => ({
+      ...prev,
+      [position]: {
+        ...prev[position],
+        [field]: Math.max(0, val)
+      }
     }));
   };
 
@@ -219,7 +251,9 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
     for (let pos = 1; pos <= playerCount; pos++) {
       results.push({
         position: pos,
-        player_id: Number(selectedPlayers[pos])
+        player_id: Number(selectedPlayers[pos]),
+        kills: Number(combatStats[pos]?.kills || 0),
+        deaths: Number(combatStats[pos]?.deaths || 0)
       });
     }
 
@@ -235,6 +269,8 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
           player_count: playerCount,
           league_id: selectedLeagueId,
           notes,
+          action_logs: match.action_logs,
+          kill_logs: match.kill_logs,
           results
         })
       });
@@ -449,48 +485,100 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
                   </button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {positionBadges.slice(0, playerCount).map((item) => {
-                    const pts = currentPoints[item.pos as keyof typeof currentPoints] || 0;
+                    const basePts = currentPoints[item.pos as keyof typeof currentPoints] || 0;
+                    const kills = combatStats[item.pos]?.kills || 0;
+                    const deaths = combatStats[item.pos]?.deaths || 0;
+                    const combatDiff = (kills * 5) - (deaths * 5);
+                    const totalPts = Math.max(0, basePts + combatDiff);
+
                     return (
                       <div
                         key={item.pos}
-                        className={`p-3 rounded-2xl border ${item.color} flex items-center justify-between gap-3 transition-all`}
+                        className={`p-3 rounded-2xl border ${item.color} space-y-2 transition-all`}
                       >
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <span className="text-2xl">{item.icon}</span>
-                          <div>
-                            <div className="text-xs font-bold text-zinc-900 dark:text-white">{item.label}</div>
-                            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                              +{pts} pts
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center space-x-2 shrink-0">
+                            <span className="text-2xl">{item.icon}</span>
+                            <div>
+                              <div className="text-xs font-bold text-zinc-900 dark:text-white">{item.label}</div>
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className="text-zinc-500 dark:text-zinc-400 font-semibold">
+                                  Base: +{basePts}
+                                </span>
+                                {combatDiff !== 0 && (
+                                  <span className={`font-bold ${combatDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    Combat: {combatDiff > 0 ? `+${combatDiff}` : combatDiff}
+                                  </span>
+                                )}
+                                <span className="font-extrabold text-amber-600 dark:text-amber-400 ml-0.5">
+                                  = {totalPts.toFixed(1)} pts
+                                </span>
+                              </div>
                             </div>
+                          </div>
+
+                          <div className="grow max-w-full sm:max-w-xs">
+                            <select
+                              value={selectedPlayers[item.pos] || ''}
+                              onChange={(e) => handlePlayerChange(item.pos, e.target.value)}
+                              className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-zinc-900 dark:text-white focus:ring-2 focus:ring-amber-500 shadow-xs"
+                            >
+                              <option value="">-- Select Player --</option>
+                              {players.map((p) => {
+                                const isSelectedElsewhere = Object.entries(selectedPlayers).some(
+                                  ([pos, pid]) => Number(pos) !== item.pos && pid === String(p.id)
+                                );
+                                return (
+                                  <option
+                                    key={p.id}
+                                    value={p.id}
+                                    disabled={isSelectedElsewhere}
+                                    className={isSelectedElsewhere ? 'text-zinc-400 bg-zinc-100 dark:bg-zinc-800' : ''}
+                                  >
+                                    {p.full_name} {p.nickname ? `(${p.nickname})` : ''}
+                                    {isSelectedElsewhere ? ' — [Selected]' : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
                         </div>
 
-                        <div className="grow max-w-xs">
-                          <select
-                            value={selectedPlayers[item.pos] || ''}
-                            onChange={(e) => handlePlayerChange(item.pos, e.target.value)}
-                            className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl text-xs font-semibold text-zinc-900 dark:text-white focus:ring-2 focus:ring-amber-500 shadow-xs"
-                          >
-                            <option value="">-- Select Player --</option>
-                            {players.map((p) => {
-                              const isSelectedElsewhere = Object.entries(selectedPlayers).some(
-                                ([pos, pid]) => Number(pos) !== item.pos && pid === String(p.id)
-                              );
-                              return (
-                                <option
-                                  key={p.id}
-                                  value={p.id}
-                                  disabled={isSelectedElsewhere}
-                                  className={isSelectedElsewhere ? 'text-zinc-400 bg-zinc-100 dark:bg-zinc-800' : ''}
-                                >
-                                  {p.full_name} {p.nickname ? `(${p.nickname})` : ''}
-                                  {isSelectedElsewhere ? ' — [Selected]' : ''}
-                                </option>
-                              );
-                            })}
-                          </select>
+                        {/* Combat Kills & Deaths Inputs */}
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-1.5 border-t border-zinc-200/60 dark:border-zinc-700/60 text-xs">
+                          <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 sm:mr-auto">
+                            Combat Stats:
+                          </span>
+                          
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-900/60">
+                            <Swords className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Kills:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={kills}
+                              onChange={(e) => handleCombatChange(item.pos, 'kills', parseInt(e.target.value) || 0)}
+                              className="w-12 text-center text-xs font-black bg-transparent text-zinc-900 dark:text-white border-0 p-0 focus:ring-0 focus:outline-hidden"
+                            />
+                            <span className="text-[9px] text-emerald-600 font-semibold">(+5 ea)</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-xl border border-rose-200 dark:border-rose-900/60">
+                            <Skull className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400">Deaths:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={deaths}
+                              onChange={(e) => handleCombatChange(item.pos, 'deaths', parseInt(e.target.value) || 0)}
+                              className="w-12 text-center text-xs font-black bg-transparent text-zinc-900 dark:text-white border-0 p-0 focus:ring-0 focus:outline-hidden"
+                            />
+                            <span className="text-[9px] text-rose-600 font-semibold">(-5 ea)</span>
+                          </div>
                         </div>
                       </div>
                     );

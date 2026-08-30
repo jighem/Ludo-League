@@ -377,6 +377,96 @@ function initEmbeddedSchema() {
   } catch (err) {
     // ignore
   }
+
+  // Self-heal any matches where kills/deaths were reset to 0 but kill_logs JSON exists
+  try {
+    const matchesWithLogs = sqlJsDb.exec(`
+      SELECT m.id, m.player_count, m.kill_logs
+      FROM matches m
+      WHERE m.kill_logs IS NOT NULL AND m.kill_logs != '' AND m.kill_logs != '[]'
+    `);
+
+    if (matchesWithLogs.length > 0 && matchesWithLogs[0].values) {
+      const scoringDefault = {
+        4: { 1: 50.0, 2: 30.0, 3: 20.0, 4: 0.0 },
+        3: { 1: 62.5, 2: 37.5, 3: 0.0, 4: 0.0 },
+        2: { 1: 100.0, 2: 0.0, 3: 0.0, 4: 0.0 }
+      };
+
+      for (const row of matchesWithLogs[0].values) {
+        const matchId = Number(row[0]);
+        const pCount = Number(row[1]) || 4;
+        const killLogsRaw = row[2];
+
+        try {
+          const parsedLogs = typeof killLogsRaw === 'string' ? JSON.parse(killLogsRaw) : killLogsRaw;
+          if (Array.isArray(parsedLogs) && parsedLogs.length > 0) {
+            // Count kills and deaths by player_id and player_name
+            const killCountMap: Record<string, number> = {};
+            const deathCountMap: Record<string, number> = {};
+
+            parsedLogs.forEach((k: any) => {
+              if (k.killer_id) {
+                killCountMap[`id_${k.killer_id}`] = (killCountMap[`id_${k.killer_id}`] || 0) + 1;
+              }
+              if (k.killer_name) {
+                const cleanName = String(k.killer_name).trim().toLowerCase();
+                killCountMap[`name_${cleanName}`] = (killCountMap[`name_${cleanName}`] || 0) + 1;
+              }
+              if (k.victim_id) {
+                deathCountMap[`id_${k.victim_id}`] = (deathCountMap[`id_${k.victim_id}`] || 0) + 1;
+              }
+              if (k.victim_name) {
+                const cleanName = String(k.victim_name).trim().toLowerCase();
+                deathCountMap[`name_${cleanName}`] = (deathCountMap[`name_${cleanName}`] || 0) + 1;
+              }
+            });
+
+            // Fetch match_results for this match
+            const mrStmt = sqlJsDb.prepare(`
+              SELECT mr.id, mr.player_id, mr.position, mr.kills, mr.deaths, p.full_name
+              FROM match_results mr
+              JOIN players p ON mr.player_id = p.id
+              WHERE mr.match_id = ?
+            `);
+            mrStmt.bind([matchId]);
+            const resultsToHeal: any[] = [];
+            while (mrStmt.step()) {
+              resultsToHeal.push(mrStmt.getAsObject());
+            }
+            mrStmt.free();
+
+            const pointsMap = (scoringDefault as any)[pCount] || scoringDefault[4];
+
+            for (const r of resultsToHeal) {
+              const pNameLower = String(r.full_name).trim().toLowerCase();
+              const derivedKills = killCountMap[`id_${r.player_id}`] || killCountMap[`name_${pNameLower}`] || 0;
+              const derivedDeaths = deathCountMap[`id_${r.player_id}`] || deathCountMap[`name_${pNameLower}`] || 0;
+
+              // If match_results has 0 kills/deaths but kill_logs has positive counts
+              if ((r.kills === 0 && derivedKills > 0) || (r.deaths === 0 && derivedDeaths > 0)) {
+                const pos = Number(r.position);
+                const basePoints = pointsMap[pos] || 0.0;
+                const points = Number((basePoints + (derivedKills * 5) - (derivedDeaths * 5)).toFixed(2));
+
+                const upd = sqlJsDb.prepare(`
+                  UPDATE match_results
+                  SET kills = ?, deaths = ?, points_awarded = ?, updated_at = CURRENT_TIMESTAMP
+                  WHERE id = ?
+                `);
+                upd.run([derivedKills, derivedDeaths, points, r.id]);
+                upd.free();
+              }
+            }
+          }
+        } catch (parseErr) {
+          // ignore malformed logs
+        }
+      }
+    }
+  } catch (healErr) {
+    // ignore
+  }
 }
 
 /**

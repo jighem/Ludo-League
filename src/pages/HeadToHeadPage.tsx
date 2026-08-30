@@ -91,33 +91,33 @@ export const HeadToHeadPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-zinc-900/80 rounded-3xl p-6 border border-zinc-800/80 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900/80 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800/80 shadow-md dark:shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
             <Swords className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Rivalry & Comparisons</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Rivalry & Comparisons</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Analyze head-to-head records when players play in the same game
             </p>
           </div>
         </div>
 
         {/* Mode Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+        <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
           <button
             onClick={() => setMode('h2h')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              mode === 'h2h' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              mode === 'h2h' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             Head-to-Head (1v1)
           </button>
           <button
             onClick={() => setMode('multi')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              mode === 'multi' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              mode === 'multi' ? 'bg-amber-500 text-zinc-950 shadow-md font-extrabold' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
             }`}
           >
             Multi-Player (Up to 4)

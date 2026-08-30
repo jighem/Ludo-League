@@ -431,6 +431,23 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       ? (kill_logs ? (typeof kill_logs === 'string' ? kill_logs : JSON.stringify(kill_logs)) : null)
       : currentMatch.kill_logs;
 
+    // Build fallback kills/deaths map from kill_logs if results omit them
+    const logsKillsMap: Record<string, number> = {};
+    const logsDeathsMap: Record<string, number> = {};
+    if (killLogsStr) {
+      try {
+        const parsed = typeof killLogsStr === 'string' ? JSON.parse(killLogsStr) : killLogsStr;
+        if (Array.isArray(parsed)) {
+          parsed.forEach((k: any) => {
+            if (k.killer_id) logsKillsMap[`id_${k.killer_id}`] = (logsKillsMap[`id_${k.killer_id}`] || 0) + 1;
+            if (k.victim_id) logsDeathsMap[`id_${k.victim_id}`] = (logsDeathsMap[`id_${k.victim_id}`] || 0) + 1;
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const pointsMap = await getScoringRules(pCount);
 
     await transaction(async (tx) => {
@@ -446,8 +463,11 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
       for (const r of results) {
         const pid = Number(r.player_id);
         const pos = Number(r.position);
-        const kills = Math.max(0, Number(r.kills) || 0);
-        const deaths = Math.max(0, Number(r.deaths) || 0);
+        
+        // Prioritize explicitly submitted kills/deaths; fallback to logs if undefined
+        let kills = r.kills !== undefined && r.kills !== null ? Math.max(0, Number(r.kills) || 0) : (logsKillsMap[`id_${pid}`] || 0);
+        let deaths = r.deaths !== undefined && r.deaths !== null ? Math.max(0, Number(r.deaths) || 0) : (logsDeathsMap[`id_${pid}`] || 0);
+
         const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
         // Combat rule: +5 pts per kill, -5 pts per death
         const points = Number((basePoints + (kills * 5) - (deaths * 5)).toFixed(2));

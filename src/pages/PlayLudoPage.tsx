@@ -89,6 +89,13 @@ export const PlayLudoPage: React.FC<{
   const [targetLeagueId, setTargetLeagueId] = useState<number>(activeLeagueId || 1);
   const [isMuted, setIsMuted] = useState<boolean>(ludoAudio.getMuted());
 
+  // Keep target league in sync with global active league while in setup
+  useEffect(() => {
+    if (gameState === 'setup' && activeLeagueId) {
+      setTargetLeagueId(activeLeagueId);
+    }
+  }, [activeLeagueId, gameState]);
+
   // Player Seat Assignments
   const [seatConfig, setSeatConfig] = useState<Record<LudoColor, {
     type: 'player' | 'bot' | 'guest';
@@ -1083,14 +1090,11 @@ export const PlayLudoPage: React.FC<{
 
       // Build results array
       const results = rankings.map((item) => {
-        let pId = item.player.leaguePlayerId;
-        if (!pId) {
-          // If bot or guest, fallback to first available or create guest entry
-          pId = rosterPlayers[0]?.id || 1;
-        }
+        const pId = item.player.leaguePlayerId ? Number(item.player.leaguePlayerId) : undefined;
         return {
           position: item.rank,
           player_id: pId,
+          player_name: item.player.name,
           kills: item.player.kills || 0,
           deaths: item.player.deaths || 0
         };
@@ -1113,6 +1117,9 @@ export const PlayLudoPage: React.FC<{
         clearActiveLudoSession();
         setPendingOfflineCount(getPendingMatches().length);
         setMatchSubmittedSuccess({ friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)' });
+        if (targetLeagueId && targetLeagueId !== activeLeagueId) {
+          setActiveLeagueId(targetLeagueId);
+        }
         return;
       }
 
@@ -1124,6 +1131,9 @@ export const PlayLudoPage: React.FC<{
 
         clearActiveLudoSession();
         setMatchSubmittedSuccess({ friendlyId: res.friendlyId });
+        if (targetLeagueId && targetLeagueId !== activeLeagueId) {
+          setActiveLeagueId(targetLeagueId);
+        }
         triggerDataRefresh();
       } catch (networkErr: any) {
         console.warn('Network issue during match save, storing offline locally:', networkErr);
@@ -1132,6 +1142,9 @@ export const PlayLudoPage: React.FC<{
         clearActiveLudoSession();
         setPendingOfflineCount(getPendingMatches().length);
         setMatchSubmittedSuccess({ friendlyId: 'OFFLINE-QUEUED (Auto-syncs on reconnect)' });
+        if (targetLeagueId && targetLeagueId !== activeLeagueId) {
+          setActiveLeagueId(targetLeagueId);
+        }
       }
     } catch (err: any) {
       console.error('Failed to submit Ludo match:', err);

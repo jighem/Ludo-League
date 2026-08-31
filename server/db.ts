@@ -170,6 +170,11 @@ export async function initDatabase() {
           INSERT IGNORE INTO leagues (id, name, code, description, is_active, is_default)
           VALUES (1, 'AC Ludo League 1', 'AC-LUDO-1', 'The primary competitive Ludo championship league.', 1, 1);
         `);
+
+        // Ensure no negative points in match results due to excessive deaths
+        await mysqlPool.query(`
+          UPDATE match_results SET points_awarded = 0 WHERE points_awarded < 0;
+        `);
       } catch (migErr) {
         console.warn('Notice during multi-league migration check on MySQL:', (migErr as Error).message);
       }
@@ -493,7 +498,7 @@ function initEmbeddedSchema() {
               if ((r.kills === 0 && derivedKills > 0) || (r.deaths === 0 && derivedDeaths > 0)) {
                 const pos = Number(r.position);
                 const basePoints = pointsMap[pos] || 0.0;
-                const points = Number((basePoints + (derivedKills * 5) - (derivedDeaths * 5)).toFixed(2));
+                const points = Math.max(0, Number((basePoints + (derivedKills * 5) - (derivedDeaths * 5)).toFixed(2)));
 
                 const upd = sqlJsDb.prepare(`
                   UPDATE match_results
@@ -511,6 +516,13 @@ function initEmbeddedSchema() {
       }
     }
   } catch (healErr) {
+    // ignore
+  }
+
+  // Ensure no negative points in match results due to excessive deaths
+  try {
+    sqlJsDb.exec('UPDATE match_results SET points_awarded = 0 WHERE points_awarded < 0;');
+  } catch (err) {
     // ignore
   }
 }

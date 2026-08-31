@@ -287,10 +287,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[min(96vw,calc(100dvh-135px))] max-h-[calc(100dvh-135px)] aspect-square mx-auto flex items-center justify-center select-none">
+    <div className="w-full max-w-[min(98vw,660px,calc(100dvh-115px))] max-h-[calc(100dvh-115px)] aspect-square mx-auto flex items-center justify-center select-none">
       
       {/* 15x15 LUDO BOARD STAGE */}
-      <div className="relative w-full h-full bg-zinc-950 rounded-2xl p-1 sm:p-2 shadow-2xl border-3 border-zinc-900">
+      <div className="relative w-full h-full bg-zinc-950 rounded-2xl p-0.5 sm:p-1.5 shadow-2xl border-2 sm:border-3 border-zinc-900">
         {/* 15x15 Grid Board Container */}
         <div className="relative w-full h-full grid grid-cols-15 grid-rows-15 rounded-xl overflow-hidden border-2 border-zinc-950 bg-white shadow-inner">
           
@@ -317,7 +317,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               return (
                 <div
                   key={`top-${r}-${c}`}
-                  className={`border-[1.5px] border-zinc-900 flex items-center justify-center relative ${
+                  className={`border border-zinc-900 flex items-center justify-center relative ${
                     isGreenStart || isGreenHomePath
                       ? 'bg-emerald-500 text-white'
                       : isGreenArrowCell
@@ -326,10 +326,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   }`}
                 >
                   {isGreenArrowCell && (
-                    <ArrowDown className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-emerald-700 stroke-[3]" />
+                    <ArrowDown className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-700 stroke-[3]" />
                   )}
                   {isStar && (
-                    <Star className="w-3 h-3 sm:w-4.5 sm:h-4.5 text-zinc-950 fill-none stroke-[2.5]" />
+                    <Star className="w-3.5 h-3.5 sm:w-5.5 sm:h-5.5 text-zinc-950 fill-none stroke-[2.5]" />
                   )}
                 </div>
               );
@@ -359,7 +359,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               return (
                 <div
                   key={`left-${r}-${c}`}
-                  className={`border-[1.5px] border-zinc-900 flex items-center justify-center relative ${
+                  className={`border border-zinc-900 flex items-center justify-center relative ${
                     isRedStart || isRedHomePath
                       ? 'bg-red-600 text-white'
                       : isRedArrowCell
@@ -368,10 +368,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   }`}
                 >
                   {isRedArrowCell && (
-                    <ArrowRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-700 stroke-[3]" />
+                    <ArrowRight className="w-4 h-4 sm:w-6 sm:h-6 text-red-700 stroke-[3]" />
                   )}
                   {isStar && (
-                    <Star className="w-3 h-3 sm:w-4.5 sm:h-4.5 text-zinc-950 fill-none stroke-[2.5]" />
+                    <Star className="w-3.5 h-3.5 sm:w-5.5 sm:h-5.5 text-zinc-950 fill-none stroke-[2.5]" />
                   )}
                 </div>
               );
@@ -405,8 +405,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
             {/* Central Crown Finish Icon */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-zinc-950/90 border-2 border-amber-300 flex items-center justify-center shadow-lg">
-                <Crown className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-amber-400 fill-amber-400" />
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-zinc-950/90 border-2 border-amber-300 flex items-center justify-center shadow-lg">
+                <Crown className="w-4 h-4 sm:w-5.5 sm:h-5.5 text-amber-400 fill-amber-400" />
               </div>
             </div>
           </div>
@@ -427,7 +427,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               return (
                 <div
                   key={`right-${r}-${c}`}
-                  className={`border-[1.5px] border-zinc-900 flex items-center justify-center relative ${
+                  className={`border border-zinc-900 flex items-center justify-center relative ${
                     isYellowStart || isYellowHomePath
                       ? 'bg-amber-400 text-zinc-950'
                       : isYellowArrowCell
@@ -436,10 +436,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   }`}
                 >
                   {isYellowArrowCell && (
-                    <ArrowLeft className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-amber-700 stroke-[3]" />
+                    <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6 text-amber-700 stroke-[3]" />
                   )}
                   {isStar && (
-                    <Star className="w-3 h-3 sm:w-4.5 sm:h-4.5 text-zinc-950 fill-none stroke-[2.5]" />
+                    <Star className="w-3.5 h-3.5 sm:w-5.5 sm:h-5.5 text-zinc-950 fill-none stroke-[2.5]" />
                   )}
                 </div>
               );
@@ -469,7 +469,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               return (
                 <div
                   key={`bot-${r}-${c}`}
-                  className={`border-[1.5px] border-zinc-900 flex items-center justify-center relative ${
+                  className={`border border-zinc-900 flex items-center justify-center relative ${
                     isBlueStart || isBlueHomePath
                       ? 'bg-blue-500 text-white'
                       : isBlueArrowCell
@@ -478,10 +478,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   }`}
                 >
                   {isBlueArrowCell && (
-                    <ArrowUp className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-blue-700 stroke-[3]" />
+                    <ArrowUp className="w-4 h-4 sm:w-6 sm:h-6 text-blue-700 stroke-[3]" />
                   )}
                   {isStar && (
-                    <Star className="w-3 h-3 sm:w-4.5 sm:h-4.5 text-zinc-950 fill-none stroke-[2.5]" />
+                    <Star className="w-3.5 h-3.5 sm:w-5.5 sm:h-5.5 text-zinc-950 fill-none stroke-[2.5]" />
                   )}
                 </div>
               );
@@ -546,10 +546,10 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               // Dynamic scaling: when multiple tokens sit on the same track cell, shrink tokens so all are visible
               const multiScale = (count > 1 && !isAtHomeBase && !isWalking)
                 ? count === 2
-                  ? 0.76
+                  ? 0.78
                   : count === 3
-                  ? 0.64
-                  : 0.54
+                  ? 0.66
+                  : 0.56
                 : 1;
 
               return (
@@ -586,7 +586,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   >
                     {/* Outer Teardrop/Pin Body */}
                     <div
-                      className="relative w-6 h-6 sm:w-7.5 sm:h-7.5 rounded-full border-2 border-white dark:border-zinc-950 shadow-lg flex items-center justify-center"
+                      className="relative w-6.5 h-6.5 sm:w-8.5 sm:h-8.5 rounded-full border-2 border-white dark:border-zinc-950 shadow-lg flex items-center justify-center"
                       style={{
                         background: colorCfg.tokenGradient,
                         boxShadow: isWalking
@@ -597,15 +597,15 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                       }}
                     >
                       {/* Inner glossy core / lens with Token ID */}
-                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white/40 border border-white/80 shadow-inner flex items-center justify-center">
-                        <span className="text-[8px] sm:text-[9px] font-black text-white drop-shadow-md">
+                      <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-white/40 border border-white/80 shadow-inner flex items-center justify-center">
+                        <span className="text-[8.5px] sm:text-[10px] font-black text-white drop-shadow-md">
                           {token.id + 1}
                         </span>
                       </div>
 
                       {/* Movable Crown/Indicator Halo */}
                       {isMovable && !isWalking && (
-                        <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-amber-400 rounded-full border border-zinc-900 flex items-center justify-center shadow-xs">
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-amber-400 rounded-full border border-zinc-900 flex items-center justify-center shadow-xs">
                           <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full animate-ping" />
                         </span>
                       )}
@@ -613,7 +613,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
                     {/* Bottom Ring / Pin Base Shadow */}
                     <div
-                      className={`w-3.5 sm:w-4.5 -mt-0.5 rounded-full blur-[0.5px] transition-all ${
+                      className={`w-4 sm:w-5 -mt-0.5 rounded-full blur-[0.5px] transition-all ${
                         isWalking ? 'h-2 opacity-50 scale-110' : 'h-1 sm:h-1.5 opacity-70'
                       }`}
                       style={{ background: 'rgba(0, 0, 0, 0.6)' }}

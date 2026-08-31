@@ -238,8 +238,9 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
         const kills = Math.max(0, Number(r.kills) || 0);
         const deaths = Math.max(0, Number(r.deaths) || 0);
         const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
-        // Combat rule: +5 pts per kill, -5 pts per death
-        const points = Number((basePoints + (kills * 5) - (deaths * 5)).toFixed(2));
+        // Combat rule: +5 pts per kill, -5 pts per death. Floor at 0 (no negative final score even with excessive deaths)
+        const rawPoints = basePoints + (kills * 5) - (deaths * 5);
+        const points = Math.max(0, Number(rawPoints.toFixed(2)));
 
         await tx.execute(
           `INSERT INTO match_results (match_id, player_id, position, points_awarded, kills, deaths, created_at, updated_at)
@@ -526,8 +527,9 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
         let deaths = r.deaths !== undefined && r.deaths !== null ? Math.max(0, Number(r.deaths) || 0) : (logsDeathsMap[`id_${pid}`] || 0);
 
         const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
-        // Combat rule: +5 pts per kill, -5 pts per death
-        const points = Number((basePoints + (kills * 5) - (deaths * 5)).toFixed(2));
+        // Combat rule: +5 pts per kill, -5 pts per death. Floor at 0 (no negative final score even with excessive deaths)
+        const rawPoints = basePoints + (kills * 5) - (deaths * 5);
+        const points = Math.max(0, Number(rawPoints.toFixed(2)));
 
         await tx.execute(
           `INSERT INTO match_results (match_id, player_id, position, points_awarded, kills, deaths, created_at, updated_at)

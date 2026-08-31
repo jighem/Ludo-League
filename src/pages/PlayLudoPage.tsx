@@ -1820,11 +1820,11 @@ export const PlayLudoPage: React.FC<{
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           
           {/* Main Board Center Stage */}
-          <div className="lg:col-span-8 flex flex-col items-center justify-center space-y-3">
+          <div className="lg:col-span-8 flex flex-col items-center justify-center space-y-2.5">
             
             {/* Interactive Ludo Board with Screen Shake & Combat Hotspot Popup */}
             <div className={`w-full flex justify-center relative ${isCombatShaking ? 'animate-combat-shake' : ''}`}>
-              <div className="w-full max-w-[min(96vw,calc(100dvh-135px))] max-h-[calc(100dvh-135px)] aspect-square mx-auto flex items-center justify-center">
+              <div className="w-full max-w-[min(98vw,660px,calc(100dvh-115px))] max-h-[calc(100dvh-115px)] aspect-square mx-auto flex items-center justify-center">
                 <LudoBoard
                   players={players}
                   activeColor={turnColor}
@@ -2077,9 +2077,10 @@ export const PlayLudoPage: React.FC<{
               const kills = item.player.kills || 0;
               const deaths = item.player.deaths || 0;
               const combatPts = (kills * 5) - (deaths * 5);
-              const totalPts = Number((basePts + combatPts).toFixed(2));
+              const totalPts = Math.max(0, Number((basePts + combatPts).toFixed(2)));
               const colorCfg = COLOR_CONFIG[item.player.color] || { name: 'Player', bgHex: '#fbbf24' };
               const playerName = item.player.name || colorCfg.name || 'Player';
+              const isFloored = basePts + combatPts < 0;
 
               return (
                 <div
@@ -2112,10 +2113,10 @@ export const PlayLudoPage: React.FC<{
 
                   <div className="text-left sm:text-right">
                     <div className="text-sm font-black text-amber-600 dark:text-amber-400">
-                      {totalPts >= 0 ? `+${totalPts}` : totalPts} pts
+                      +{totalPts} pts
                     </div>
                     <div className="text-[10px] text-zinc-400 font-medium">
-                      Base {basePts} {combatPts >= 0 ? `+ ${combatPts}` : `- ${Math.abs(combatPts)}`} combat
+                      Base {basePts} {combatPts >= 0 ? `+ ${combatPts}` : `- ${Math.abs(combatPts)}`} combat {isFloored ? '(Floored at 0)' : ''}
                     </div>
                   </div>
                 </div>

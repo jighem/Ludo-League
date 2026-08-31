@@ -61,43 +61,43 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
     switch (color) {
       case 'red':
         return {
-          diceBg: 'bg-gradient-to-br from-red-500 via-rose-600 to-red-700',
-          innerBg: 'bg-gradient-to-b from-red-500 to-red-600',
-          borderColor: 'border-red-400',
-          dotColor: 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.4)]',
+          diceBg: 'bg-gradient-to-b from-white via-red-50 to-rose-100',
+          innerBg: 'bg-white',
+          borderColor: 'border-red-400 shadow-red-500/30',
+          dotColor: 'bg-red-600 shadow-[0_1px_1px_rgba(0,0,0,0.3)]',
           glowHex: '#EF4444',
           labelColor: 'text-red-600 dark:text-red-400',
         };
       case 'green':
         return {
-          diceBg: 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-700',
-          innerBg: 'bg-gradient-to-b from-emerald-500 to-emerald-600',
-          borderColor: 'border-emerald-300',
-          dotColor: 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.4)]',
+          diceBg: 'bg-gradient-to-b from-white via-emerald-50 to-emerald-100',
+          innerBg: 'bg-white',
+          borderColor: 'border-emerald-400 shadow-emerald-500/30',
+          dotColor: 'bg-emerald-600 shadow-[0_1px_1px_rgba(0,0,0,0.3)]',
           glowHex: '#10B981',
           labelColor: 'text-emerald-600 dark:text-emerald-400',
         };
       case 'yellow':
         return {
-          diceBg: 'bg-gradient-to-br from-amber-300 via-amber-400 to-yellow-500',
-          innerBg: 'bg-gradient-to-b from-amber-400 to-yellow-500',
-          borderColor: 'border-amber-200',
-          dotColor: 'bg-zinc-950 shadow-[0_1px_2px_rgba(255,255,255,0.4)]',
+          diceBg: 'bg-gradient-to-b from-white via-amber-50 to-yellow-100',
+          innerBg: 'bg-white',
+          borderColor: 'border-amber-400 shadow-amber-500/30',
+          dotColor: 'bg-amber-600 shadow-[0_1px_1px_rgba(0,0,0,0.3)]',
           glowHex: '#F59E0B',
           labelColor: 'text-amber-600 dark:text-amber-400',
         };
       case 'blue':
         return {
-          diceBg: 'bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-700',
-          innerBg: 'bg-gradient-to-b from-blue-500 to-blue-600',
-          borderColor: 'border-blue-300',
-          dotColor: 'bg-white shadow-[0_1px_2px_rgba(0,0,0,0.4)]',
+          diceBg: 'bg-gradient-to-b from-white via-blue-50 to-indigo-100',
+          innerBg: 'bg-white',
+          borderColor: 'border-blue-400 shadow-blue-500/30',
+          dotColor: 'bg-blue-600 shadow-[0_1px_1px_rgba(0,0,0,0.3)]',
           glowHex: '#3B82F6',
           labelColor: 'text-blue-600 dark:text-blue-400',
         };
       default:
         return {
-          diceBg: 'bg-gradient-to-b from-white via-zinc-100 to-zinc-200',
+          diceBg: 'bg-gradient-to-b from-white via-zinc-50 to-zinc-100',
           innerBg: 'bg-white',
           borderColor: 'border-zinc-300',
           dotColor: 'bg-zinc-900',

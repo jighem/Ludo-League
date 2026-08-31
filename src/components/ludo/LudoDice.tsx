@@ -112,7 +112,7 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
   // Size dimensions
   const isYard = size === 'yard';
   const sizeClasses = isYard
-    ? 'w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg sm:rounded-xl p-0.5 sm:p-1'
+    ? 'w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-lg sm:rounded-xl p-0.5 sm:p-1'
     : size === 'sm'
     ? 'w-10 h-10 rounded-xl p-1'
     : size === 'lg'
@@ -120,12 +120,12 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
     : 'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl p-1.5';
 
   const dotSizeClass = isYard
-    ? 'w-1 h-1 sm:w-1.5 sm:h-1.5'
+    ? 'w-1.5 h-1.5 sm:w-2 sm:h-2'
     : size === 'sm'
-    ? 'w-1 h-1 sm:w-1.5 sm:h-1.5'
+    ? 'w-1.5 h-1.5 sm:w-2 sm:h-2'
     : size === 'lg'
     ? 'w-2.5 h-2.5 sm:w-3 sm:h-3'
-    : 'w-1.5 h-1.5 sm:w-2 sm:h-2';
+    : 'w-2 h-2 sm:w-2.5 sm:h-2.5';
 
   // Dot patterns for values 1 to 6
   const renderDots = (num: number) => {
@@ -135,7 +135,7 @@ export const LudoDice: React.FC<LudoDiceProps> = ({
       case 1:
         return (
           <div className="w-full h-full flex items-center justify-center">
-            <div className={`${isYard ? 'w-2 h-2 sm:w-2.5 sm:h-2.5' : 'w-2.5 h-2.5 sm:w-3 sm:h-3'} rounded-full ${visuals.dotColor}`} />
+            <div className={`${isYard ? 'w-2.5 h-2.5 sm:w-3 sm:h-3' : 'w-3 h-3 sm:w-3.5 sm:h-3.5'} rounded-full ${visuals.dotColor}`} />
           </div>
         );
       case 2:

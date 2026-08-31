@@ -97,6 +97,43 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
     return false;
   };
 
+  // Safely parse kill_logs and action_logs regardless of whether they arrive as Array, JSON string, or null
+  const parsedKillLogs = useMemo<Array<{
+    killer_name?: string;
+    victim_name?: string;
+    killer_color?: string;
+    victim_color?: string;
+    square?: number;
+    turn?: number;
+    timestamp?: string;
+  }>>(() => {
+    if (!viewingLogsMatch?.kill_logs) return [];
+    if (Array.isArray(viewingLogsMatch.kill_logs)) return viewingLogsMatch.kill_logs;
+    if (typeof viewingLogsMatch.kill_logs === 'string') {
+      try {
+        const parsed = JSON.parse(viewingLogsMatch.kill_logs);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [viewingLogsMatch]);
+
+  const parsedActionLogs = useMemo<string[]>(() => {
+    if (!viewingLogsMatch?.action_logs) return [];
+    if (Array.isArray(viewingLogsMatch.action_logs)) return viewingLogsMatch.action_logs;
+    if (typeof viewingLogsMatch.action_logs === 'string') {
+      try {
+        const parsed = JSON.parse(viewingLogsMatch.action_logs);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [viewingLogsMatch]);
+
   useEffect(() => {
     fetchPlayers();
   }, [dataVersion]);
@@ -1014,7 +1051,7 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                 }`}
               >
                 <Crosshair className="w-3.5 h-3.5" />
-                <span>Combat Knockouts ({viewingLogsMatch.kill_logs?.length || 0})</span>
+                <span>Combat Knockouts ({parsedKillLogs.length})</span>
               </button>
 
               <button
@@ -1026,16 +1063,16 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Match Action Stream ({viewingLogsMatch.action_logs?.length || 0})</span>
+                <span>Match Action Stream ({parsedActionLogs.length})</span>
               </button>
             </div>
 
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-3 flex-1">
               {logsTab === 'kills' ? (
-                viewingLogsMatch.kill_logs && viewingLogsMatch.kill_logs.length > 0 ? (
+                parsedKillLogs.length > 0 ? (
                   <div className="space-y-2">
-                    {viewingLogsMatch.kill_logs.map((k, idx) => (
+                    {parsedKillLogs.map((k, idx) => (
                       <div
                         key={idx}
                         className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs hover:border-rose-300 dark:hover:border-rose-800/60 transition-colors"
@@ -1046,9 +1083,9 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                           </span>
                           <div className="space-y-0.5">
                             <div className="font-extrabold text-zinc-900 dark:text-white flex items-center space-x-1.5">
-                              <span className="text-amber-600 dark:text-amber-400">{k.killer_name}</span>
+                              <span className="text-amber-600 dark:text-amber-400">{k.killer_name || 'Player'}</span>
                               <span className="text-rose-500 text-xs font-black">⚔️ ELIMINATED</span>
-                              <span className="text-zinc-600 dark:text-zinc-300">{k.victim_name}</span>
+                              <span className="text-zinc-600 dark:text-zinc-300">{k.victim_name || 'Player'}</span>
                             </div>
                             <div className="text-[10px] text-zinc-400 flex items-center space-x-2">
                               {k.square !== undefined && <span>Track Square #{k.square}</span>}
@@ -1077,15 +1114,15 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ onSelectPlayer, onOp
                   </div>
                 )
               ) : (
-                viewingLogsMatch.action_logs && viewingLogsMatch.action_logs.length > 0 ? (
+                parsedActionLogs.length > 0 ? (
                   <div className="space-y-1.5 font-mono text-[11px]">
-                    {viewingLogsMatch.action_logs.map((log, idx) => (
+                    {parsedActionLogs.map((log, idx) => (
                       <div
                         key={idx}
                         className="p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/60 dark:border-zinc-800/60 text-zinc-700 dark:text-zinc-300 flex items-center space-x-2"
                       >
                         <span className="text-[10px] text-zinc-400 select-none">[{idx + 1}]</span>
-                        <span>{log}</span>
+                        <span>{typeof log === 'string' ? log : JSON.stringify(log)}</span>
                       </div>
                     ))}
                   </div>

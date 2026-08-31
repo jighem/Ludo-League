@@ -148,16 +148,21 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE players ADD INDEX idx_is_bot (is_bot);`);
         }
 
-        // Mark all Bot / AI players with is_bot = 1
+        // Ensure human players have is_bot = 0 and only real bots have is_bot = 1
         await mysqlPool.query(`
           UPDATE players 
-          SET is_bot = 1 
-          WHERE LOWER(full_name) LIKE 'bot %' 
-             OR LOWER(full_name) LIKE '%(ai)%' 
-             OR LOWER(full_name) LIKE '%[bot]%' 
-             OR LOWER(full_name) = 'bot' 
-             OR LOWER(nickname) LIKE '%bot%' 
-             OR LOWER(nickname) LIKE '%(ai)%';
+          SET is_bot = CASE 
+            WHEN LOWER(full_name) LIKE 'bot %' 
+              OR LOWER(full_name) LIKE 'bot-%'
+              OR LOWER(full_name) LIKE '%(ai)%' 
+              OR LOWER(full_name) LIKE '%[bot]%' 
+              OR LOWER(full_name) = 'bot' 
+              OR LOWER(nickname) LIKE 'bot %'
+              OR LOWER(nickname) LIKE '%(ai)%'
+              OR LOWER(nickname) = 'bot'
+            THEN 1 
+            ELSE 0 
+          END;
         `);
 
         // Ensure default AC Ludo League 1 exists
@@ -398,25 +403,22 @@ function initEmbeddedSchema() {
     // ignore
   }
 
-  // Ensure default AI Bots exist in players table so Ludo play matches have distinct IDs
+  // Ensure correct is_bot flags for human vs bot players
   try {
     sqlJsDb.exec(`
-      INSERT OR IGNORE INTO players (id, full_name, nickname, date_joined, is_active, is_bot) VALUES
-      (1, 'Jignesh Panchal', 'Master', '2026-01-01', 1, 0),
-      (2, 'Bot Red (AI)', 'Red AI', '2026-01-01', 1, 1),
-      (3, 'Bot Green (AI)', 'Green AI', '2026-01-01', 1, 1),
-      (4, 'Bot Yellow (AI)', 'Yellow AI', '2026-01-01', 1, 1),
-      (5, 'Bot Blue (AI)', 'Blue AI', '2026-01-01', 1, 1);
-    `);
-    sqlJsDb.exec(`
       UPDATE players 
-      SET is_bot = 1 
-      WHERE LOWER(full_name) LIKE 'bot %' 
-         OR LOWER(full_name) LIKE '%(ai)%' 
-         OR LOWER(full_name) LIKE '%[bot]%' 
-         OR LOWER(full_name) = 'bot' 
-         OR LOWER(nickname) LIKE '%bot%' 
-         OR LOWER(nickname) LIKE '%(ai)%';
+      SET is_bot = CASE 
+        WHEN LOWER(full_name) LIKE 'bot %' 
+          OR LOWER(full_name) LIKE 'bot-%'
+          OR LOWER(full_name) LIKE '%(ai)%' 
+          OR LOWER(full_name) LIKE '%[bot]%' 
+          OR LOWER(full_name) = 'bot' 
+          OR LOWER(nickname) LIKE 'bot %'
+          OR LOWER(nickname) LIKE '%(ai)%'
+          OR LOWER(nickname) = 'bot'
+        THEN 1 
+        ELSE 0 
+      END;
     `);
   } catch (err) {
     // ignore

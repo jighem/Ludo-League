@@ -254,6 +254,12 @@ router.get('/dashboard', optionalAuthenticateToken, async (req, res) => {
       if (latestMatch.match_date && String(latestMatch.match_date).includes('T')) {
         latestMatch.match_date = String(latestMatch.match_date).split('T')[0];
       }
+      if (typeof latestMatch.action_logs === 'string') {
+        try { latestMatch.action_logs = JSON.parse(latestMatch.action_logs); } catch { latestMatch.action_logs = []; }
+      }
+      if (typeof latestMatch.kill_logs === 'string') {
+        try { latestMatch.kill_logs = JSON.parse(latestMatch.kill_logs); } catch { latestMatch.kill_logs = []; }
+      }
       latestMatch.results = await query<any>(
         `SELECT mr.*, p.full_name as player_name, p.nickname as player_nickname, p.profile_photo
          FROM match_results mr JOIN players p ON mr.player_id = p.id

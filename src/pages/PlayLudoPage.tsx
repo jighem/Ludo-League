@@ -63,7 +63,9 @@ import {
   WifiOff,
   RefreshCw,
   Cloud,
-  HardDrive
+  HardDrive,
+  X,
+  FileText
 } from 'lucide-react';
 
 type GameMode = 'classic' | 'quick'; // Classic = 4 tokens home, Quick = 1 token home
@@ -160,6 +162,9 @@ export const PlayLudoPage: React.FC<{
   const [showRulesModal, setShowRulesModal] = useState<boolean>(false);
   const [showOnPageRules, setShowOnPageRules] = useState<boolean>(true);
   const [showDiceDiagnostics, setShowDiceDiagnostics] = useState<boolean>(false);
+  const [showPlayersModal, setShowPlayersModal] = useState<boolean>(false);
+  const [showLogsModal, setShowLogsModal] = useState<boolean>(false);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState<boolean>(false);
 
   // Offline & Auto-Recovery State
   const [isOnline, setIsOnline] = useState<boolean>(() => isBrowserOnline());
@@ -316,13 +321,13 @@ export const PlayLudoPage: React.FC<{
         setRosterPlayers(humanRoster);
 
         if (humanRoster.length > 0) {
-          // Pre-populate human seats with first few players
+          // Pre-populate red human seat with first player
           setSeatConfig((prev) => ({
             ...prev,
-            red: { ...prev.red, playerId: String(humanRoster[0].id) },
-            green: { ...prev.green, playerId: humanRoster[1] ? String(humanRoster[1].id) : '' },
-            yellow: { ...prev.yellow, playerId: humanRoster[2] ? String(humanRoster[2].id) : '' },
-            blue: { ...prev.blue, playerId: humanRoster[3] ? String(humanRoster[3].id) : '' }
+            red: { ...prev.red, type: 'player', playerId: String(humanRoster[0].id) },
+            green: { ...prev.green, playerId: prev.green.type === 'player' && humanRoster[1] ? String(humanRoster[1].id) : '' },
+            yellow: { ...prev.yellow, playerId: prev.yellow.type === 'player' && humanRoster[2] ? String(humanRoster[2].id) : '' },
+            blue: { ...prev.blue, playerId: prev.blue.type === 'player' && humanRoster[3] ? String(humanRoster[3].id) : '' }
           }));
         }
 
@@ -489,7 +494,8 @@ export const PlayLudoPage: React.FC<{
           leaguePlayerId = found.id;
         }
       } else if (cfg.type === 'bot') {
-        displayName = `Bot ${COLOR_CONFIG[color].name}`;
+        displayName = `Bot ${COLOR_CONFIG[color].name} (AI)`;
+        leaguePlayerId = undefined;
       }
 
       const tokens: LudoToken[] = [0, 1, 2, 3].map((id) => ({
@@ -542,7 +548,7 @@ export const PlayLudoPage: React.FC<{
     if (initialPlayers[0].isBot) {
       botRollTimerRef.current = setTimeout(() => {
         handleRollDice(firstColor);
-      }, 850);
+      }, 200);
     }
   };
 
@@ -616,7 +622,7 @@ export const PlayLudoPage: React.FC<{
     waitingForMoveRef.current = false;
     ludoAudio.playDiceRoll();
 
-    // 4. Sequence Step 3: Play fixed duration visual animation (650ms)
+    // 4. Sequence Step 3: Play fixed duration visual animation (160ms - rapid roll)
     setTimeout(() => {
       if (gameStateRef.current !== 'playing') return;
 
@@ -633,26 +639,37 @@ export const PlayLudoPage: React.FC<{
       setIsTurnLocked(true);
 
       // 6. Sequence Step 5: Ludo Rules Engine processes rules based on the rolled value
-      // Check 3 consecutive sixes rule (Standard Ludo Rule: 3rd six forfeits the turn)
       let newConsecutiveSixes = rolled === 6 ? currentPlayer.consecutiveSixes + 1 : 0;
-      if (newConsecutiveSixes === 3) {
-        logEvent(`⚠️ ${currentPlayer.name} rolled three 6s in a row! 3rd consecutive 6 rule: turn forfeited.`);
-        setActiveTurnNotice(`Three consecutive 6s! Turn forfeited.`);
-        
-        // Reset player consecutive sixes and pass turn
+
+      // 4th consecutive six rule: If a 4th six is rolled, treat as 0 steps (no grid move) and grant an immediate re-roll for non-6
+      if (newConsecutiveSixes >= 4) {
+        logEvent(`🎲 ${currentPlayer.name} rolled a 4th consecutive 6. Roll counted as 0; granting immediate re-roll for non-6.`);
+        setActiveTurnNotice(`4th consecutive 6! Re-rolling for non-6...`);
+
         const updatedPlayers = playersRef.current.map((p) =>
-          p.color === validColor ? { ...p, consecutiveSixes: 0 } : p
+          p.color === validColor ? { ...p, consecutiveSixes: 2 } : p
         );
         setPlayers(updatedPlayers);
         playersRef.current = updatedPlayers;
 
-        turnTransitionTimerRef.current = setTimeout(() => {
-          advanceToNextTurn(validColor, updatedPlayers);
-        }, 1200);
+        setTimeout(() => {
+          setDiceValue(null);
+          diceValueRef.current = null;
+          setWaitingForMove(false);
+          waitingForMoveRef.current = false;
+          setIsTurnLocked(false);
+          isTurnLockedRef.current = false;
+
+          if (currentPlayer.isBot) {
+            botRollTimerRef.current = setTimeout(() => {
+              handleRollDice(validColor);
+            }, 200);
+          }
+        }, 300);
         return;
       }
 
-      // Update consecutive count on player
+      // Update consecutive count on player (tracks 1st, 2nd, 3rd sixes)
       const updatedPlayers = playersRef.current.map((p) =>
         p.color === validColor ? { ...p, consecutiveSixes: newConsecutiveSixes } : p
       );
@@ -668,17 +685,17 @@ export const PlayLudoPage: React.FC<{
 
         turnTransitionTimerRef.current = setTimeout(() => {
           advanceToNextTurn(validColor, updatedPlayers);
-        }, 1000);
+        }, 250);
       } else if (updatedCurrentPlayer.isBot) {
-        // Bot plays automatically
+        // Bot plays automatically (snappy 180ms decision)
         setWaitingForMove(true);
         waitingForMoveRef.current = true;
         setActiveTurnNotice(`Bot ${COLOR_CONFIG[updatedCurrentPlayer.color].name} is thinking...`);
         botMoveTimerRef.current = setTimeout(() => {
           handleBotMove(updatedCurrentPlayer, rolled, legalMoves, updatedPlayers);
-        }, 750);
+        }, 180);
       } else if (legalMoves.length === 1) {
-        // Auto-move single legal option for human player for smooth flow
+        // Auto-move single legal option for human player for smooth flow (snappy 100ms)
         logEvent(`${updatedCurrentPlayer.name} rolled a ${rolled}. Auto-moving Token ${legalMoves[0].id + 1}.`);
         setActiveTurnNotice(`${updatedCurrentPlayer.name} moving Token ${legalMoves[0].id + 1}...`);
         setWaitingForMove(false);
@@ -686,14 +703,14 @@ export const PlayLudoPage: React.FC<{
         autoMoveTimerRef.current = setTimeout(() => {
           autoMoveTimerRef.current = null;
           executeMove(legalMoves[0], rolled, updatedPlayers);
-        }, 400);
+        }, 100);
       } else {
         // Human player has multiple choices
         setWaitingForMove(true);
         waitingForMoveRef.current = true;
         setActiveTurnNotice(`${updatedCurrentPlayer.name}: Tap a glowing token to move ${rolled} step${rolled > 1 ? 's' : ''}!`);
       }
-    }, 650);
+    }, 160);
   };
 
   // Bot AI intelligent token selection
@@ -799,7 +816,7 @@ export const PlayLudoPage: React.FC<{
       setPlayers(updated);
       playersRef.current = updated;
 
-      await sleep(260);
+      await sleep(75);
     } else {
       // Walk on grid step-by-step along the track and home stretch
       logEvent(`🚶 ${player.name} moving Token ${tokenToMove.id + 1} (${steps} steps)...`);
@@ -829,8 +846,8 @@ export const PlayLudoPage: React.FC<{
         setPlayers(updated);
         playersRef.current = updated;
 
-        // Give each single grid step time to animate its hop
-        await sleep(170);
+        // Give each single grid step time to animate its hop (75ms)
+        await sleep(75);
       }
     }
 
@@ -1045,15 +1062,15 @@ export const PlayLudoPage: React.FC<{
       if (player.isBot) {
         botRollTimerRef.current = setTimeout(() => {
           handleRollDice(player.color);
-        }, 800);
+        }, 200);
       }
     } else {
-      // Keep turn locked while transitioning to next player
+      // Keep turn locked while transitioning to next player (snappy 175ms)
       isTurnLockedRef.current = true;
       setIsTurnLocked(true);
       turnTransitionTimerRef.current = setTimeout(() => {
         advanceToNextTurn(player.color, updatedPlayers);
-      }, 700);
+      }, 175);
     }
   };
 
@@ -1094,11 +1111,11 @@ export const PlayLudoPage: React.FC<{
     setActiveTurnNotice(`${nextPlayer.name}'s turn (${COLOR_CONFIG[nextPlayer.color].name})`);
     ludoAudio.playTurnAlert();
 
-    // If next player is Bot, trigger auto roll
+    // If next player is Bot, trigger auto roll (snappy 200ms)
     if (nextPlayer.isBot) {
       botRollTimerRef.current = setTimeout(() => {
         handleRollDice(nextColor);
-      }, 850);
+      }, 200);
     }
   };
 
@@ -1111,7 +1128,7 @@ export const PlayLudoPage: React.FC<{
           botRollTimerRef.current = setTimeout(() => {
             botRollTimerRef.current = null;
             handleRollDice(turnColor);
-          }, 850);
+          }, 200);
         }
       }
     }
@@ -1131,11 +1148,13 @@ export const PlayLudoPage: React.FC<{
 
       // Build results array
       const results = rankings.map((item) => {
-        const pId = item.player.leaguePlayerId ? Number(item.player.leaguePlayerId) : undefined;
+        const isBot = item.player.isBot === true;
+        const pId = (!isBot && item.player.leaguePlayerId) ? Number(item.player.leaguePlayerId) : undefined;
         return {
           position: item.rank,
           player_id: pId,
           player_name: item.player.name,
+          is_bot: isBot ? 1 : 0,
           kills: item.player.kills || 0,
           deaths: item.player.deaths || 0
         };
@@ -1221,102 +1240,187 @@ export const PlayLudoPage: React.FC<{
   // ================= RENDER =================
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-amber-700 rounded-3xl p-5 sm:p-6 text-zinc-950 shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-950/90 text-amber-400 p-2 border border-amber-300 flex items-center justify-center shadow-lg">
-              <Gamepad2 className="w-7 h-7" />
+    <div className={`space-y-4 sm:space-y-6 ${gameState === 'playing' ? 'max-w-7xl mx-auto' : ''}`}>
+      {/* Top Banner (Full in Setup/Game Over, Compact Bar in Playing Mode) */}
+      {gameState !== 'playing' ? (
+        <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-amber-700 rounded-3xl p-5 sm:p-6 text-zinc-950 shadow-xl relative overflow-hidden">
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-950/90 text-amber-400 p-2 border border-amber-300 flex items-center justify-center shadow-lg">
+                <Gamepad2 className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-xs">
+                    Play Ludo King
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full bg-zinc-950 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                    Live Board
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-amber-100 mt-0.5">
+                  Play on the interactive board with offline-proof auto-saving & sync directly into {targetLeague?.name || 'League Master'}.
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-xs">
-                  Play Ludo King
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full bg-zinc-950 text-amber-400 text-[10px] font-black uppercase tracking-wider">
-                  Live Board
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm font-bold text-amber-100 mt-0.5">
-                Play on the interactive board with offline-proof auto-saving & sync directly into {targetLeague?.name || 'League Master'}.
-              </p>
+
+            {/* Sound & Controls & Offline Status */}
+            <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+              {/* Offline / Online Real-Time Status Pill */}
+              {!isOnline ? (
+                <div
+                  className="px-3 py-2 rounded-2xl bg-zinc-950/85 text-amber-300 border border-amber-400/40 shadow-md flex items-center gap-1.5 text-xs font-bold"
+                  title="Internet connection is broken, but the game is 100% running locally and auto-saved!"
+                >
+                  <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="hidden sm:inline">Offline Mode (Auto-Saved)</span>
+                  <span className="sm:hidden">Offline Safe</span>
+                </div>
+              ) : pendingOfflineCount > 0 ? (
+                <button
+                  id="btn-sync-offline-matches"
+                  onClick={handleManualSyncOffline}
+                  disabled={isSyncingOffline}
+                  className="px-3 py-2 rounded-2xl bg-blue-950/90 hover:bg-blue-900 text-blue-300 border border-blue-400/50 shadow-md flex items-center gap-1.5 text-xs font-bold cursor-pointer transition-all"
+                  title="Click to sync locally stored offline matches to the leaderboard"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isSyncingOffline ? 'animate-spin' : ''}`} />
+                  <span>Sync ({pendingOfflineCount}) Offline</span>
+                </button>
+              ) : (
+                <div
+                  className="px-3 py-2 rounded-2xl bg-zinc-950/70 text-emerald-300 border border-emerald-400/30 shadow-xs flex items-center gap-1.5 text-xs font-bold"
+                  title="Connected to cloud with continuous local backup"
+                >
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="hidden sm:inline">Offline-Protected</span>
+                  <span className="sm:hidden">Protected</span>
+                </div>
+              )}
+
+              <button
+                id="btn-open-ludo-rules"
+                onClick={() => setShowRulesModal(true)}
+                className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-amber-300 border border-amber-300/40 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                title="View Official Rules & Scoring Guide"
+              >
+                <BookOpen className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline">Rules & Scoring</span>
+                <span className="sm:hidden">Rules</span>
+              </button>
+
+              <button
+                id="btn-toggle-ludo-sound"
+                onClick={handleToggleSound}
+                className="p-2 sm:p-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-amber-400 border border-amber-300/40 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                title={isMuted ? 'Unmute Sound FX' : 'Mute Sound FX'}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
+                <span className="hidden sm:inline">{isMuted ? 'Muted' : 'Sound ON'}</span>
+              </button>
             </div>
-          </div>
-
-          {/* Sound & Controls & Offline Status */}
-          <div className="flex items-center space-x-2 flex-wrap gap-y-2">
-            {/* Offline / Online Real-Time Status Pill */}
-            {!isOnline ? (
-              <div
-                className="px-3 py-2 rounded-2xl bg-zinc-950/85 text-amber-300 border border-amber-400/40 shadow-md flex items-center gap-1.5 text-xs font-bold"
-                title="Internet connection is broken, but the game is 100% running locally and auto-saved!"
-              >
-                <WifiOff className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="hidden sm:inline">Offline Mode (Auto-Saved)</span>
-                <span className="sm:hidden">Offline Safe</span>
-              </div>
-            ) : pendingOfflineCount > 0 ? (
-              <button
-                id="btn-sync-offline-matches"
-                onClick={handleManualSyncOffline}
-                disabled={isSyncingOffline}
-                className="px-3 py-2 rounded-2xl bg-blue-950/90 hover:bg-blue-900 text-blue-300 border border-blue-400/50 shadow-md flex items-center gap-1.5 text-xs font-bold cursor-pointer transition-all"
-                title="Click to sync locally stored offline matches to the leaderboard"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${isSyncingOffline ? 'animate-spin' : ''}`} />
-                <span>Sync ({pendingOfflineCount}) Offline</span>
-              </button>
-            ) : (
-              <div
-                className="px-3 py-2 rounded-2xl bg-zinc-950/70 text-emerald-300 border border-emerald-400/30 shadow-xs flex items-center gap-1.5 text-xs font-bold"
-                title="Connected to cloud with continuous local backup"
-              >
-                <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="hidden sm:inline">Offline-Protected</span>
-                <span className="sm:hidden">Protected</span>
-              </div>
-            )}
-
-            <button
-              id="btn-open-ludo-rules"
-              onClick={() => setShowRulesModal(true)}
-              className="px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-amber-300 border border-amber-300/40 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              title="View Official Rules & Scoring Guide"
-            >
-              <BookOpen className="w-4 h-4 text-amber-400" />
-              <span className="hidden sm:inline">Rules & Scoring</span>
-              <span className="sm:hidden">Rules</span>
-            </button>
-
-            <button
-              id="btn-toggle-ludo-sound"
-              onClick={handleToggleSound}
-              className="p-2 sm:p-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-amber-400 border border-amber-300/40 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              title={isMuted ? 'Unmute Sound FX' : 'Mute Sound FX'}
-            >
-              {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
-              <span className="hidden sm:inline">{isMuted ? 'Muted' : 'Sound ON'}</span>
-            </button>
-
-            {user && gameState === 'playing' && (
-              <button
-                id="btn-restart-game"
-                onClick={() => {
-                  clearAllTimers();
-                  clearActiveLudoSession();
-                  setResumedFromCache(false);
-                  setGameState('setup');
-                }}
-                className="px-3.5 py-2.5 rounded-2xl bg-zinc-950/80 hover:bg-zinc-950 text-white border border-white/20 shadow-md transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                <span>New Match</span>
-              </button>
-            )}
           </div>
         </div>
-      </div>
+      ) : (
+        /* Sleek Top Game Controller Bar during Live Gameplay (Prevents Page Scroll & Board Shifting) */
+        <div className="bg-zinc-900/95 dark:bg-zinc-950/95 border border-zinc-800 backdrop-blur-md rounded-2xl p-2 sm:p-3 flex items-center justify-between gap-2 shadow-lg select-none">
+          {/* Left: Active Turn Pill */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div
+              className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-xs shrink-0 animate-pulse"
+              style={{ background: COLOR_CONFIG[turnColor].bgHex }}
+            />
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-black text-white truncate flex items-center gap-1.5">
+                <span className="truncate">{currentActivePlayer?.name}</span>
+                {currentActivePlayer?.isBot && (
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-zinc-800 text-zinc-300 font-bold border border-zinc-700">
+                    Bot
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-zinc-400 font-medium truncate">
+                {waitingForMove ? (
+                  <span className="text-emerald-400 font-bold animate-pulse">✨ Tap highlighted token</span>
+                ) : diceValue && !isRolling ? (
+                  <span className="text-amber-400 font-bold">🎲 Rolled: {diceValue}</span>
+                ) : currentActivePlayer?.isBot ? (
+                  <span className="text-zinc-400">🤖 Rolling automatically...</span>
+                ) : (
+                  <span className="text-amber-300 font-semibold">Tap home box to roll 🎲</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Quick Action Controls & Modals */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Players Scores Modal Button */}
+            <button
+              id="btn-open-players-modal"
+              type="button"
+              onClick={() => setShowPlayersModal(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+              title="View Player Stats & Token Progress"
+            >
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xs:inline">Players</span>
+            </button>
+
+            {/* Match Logs Modal Button */}
+            <button
+              id="btn-open-logs-modal"
+              type="button"
+              onClick={() => setShowLogsModal(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 relative active:scale-95 shadow-sm"
+              title="View Match Logs"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline">Logs</span>
+              {gameLogs.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-blue-500/30 text-blue-300 text-[10px] font-extrabold border border-blue-400/30">
+                  {gameLogs.length}
+                </span>
+              )}
+            </button>
+
+            {/* Rules Modal Button */}
+            <button
+              id="btn-open-rules-compact"
+              type="button"
+              onClick={() => setShowRulesModal(true)}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-sm"
+              title="Game Rules"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Rules</span>
+            </button>
+
+            {/* Sound Toggle */}
+            <button
+              id="btn-toggle-sound-compact"
+              type="button"
+              onClick={handleToggleSound}
+              className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all cursor-pointer active:scale-95 shadow-sm"
+              title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-amber-400" />}
+            </button>
+
+            {/* Exit / Restart Button */}
+            <button
+              id="btn-exit-match-compact"
+              type="button"
+              onClick={() => setShowExitConfirmModal(true)}
+              className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-red-950/50 hover:bg-red-900/70 text-red-300 border border-red-800/50 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-sm"
+              title="Exit Match"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden md:inline">Exit</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ================= 1. PRE-GAME SETUP VIEW ================= */}
       {gameState === 'setup' && (
@@ -1713,26 +1817,40 @@ export const PlayLudoPage: React.FC<{
 
       {/* ================= 2. ACTIVE GAMEPLAY VIEW ================= */}
       {gameState === 'playing' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           
-          {/* Main Board & Center Stage */}
-          <div className="lg:col-span-8 space-y-4">
+          {/* Main Board Center Stage */}
+          <div className="lg:col-span-8 flex flex-col items-center justify-center space-y-3">
             
             {/* Interactive Ludo Board with Screen Shake & Combat Hotspot Popup */}
-            <div className={`flex justify-center relative ${isCombatShaking ? 'animate-combat-shake' : ''}`}>
-              <LudoBoard
-                players={players}
-                activeColor={turnColor}
-                diceValue={diceValue}
-                isRolling={isRolling}
-                waitingForMove={waitingForMove}
-                walkingTokenKey={walkingTokenKey}
-                onSelectToken={(token) => {
-                  if (diceValue && waitingForMove && !isRolling && !walkingTokenKey) {
-                    executeMove(token, diceValue, players);
+            <div className={`w-full flex justify-center relative ${isCombatShaking ? 'animate-combat-shake' : ''}`}>
+              <div className="w-full max-w-[min(96vw,calc(100dvh-135px))] max-h-[calc(100dvh-135px)] aspect-square mx-auto flex items-center justify-center">
+                <LudoBoard
+                  players={players}
+                  activeColor={turnColor}
+                  diceValue={diceValue}
+                  isRolling={isRolling}
+                  canRoll={
+                    !isTurnLocked &&
+                    !waitingForMove &&
+                    !isRolling &&
+                    !walkingTokenKey &&
+                    diceValue === null &&
+                    !currentActivePlayer?.isBot &&
+                    gameState === 'playing'
                   }
-                }}
-              />
+                  waitingForMove={waitingForMove}
+                  walkingTokenKey={walkingTokenKey}
+                  onRollDice={(color) => {
+                    handleRollDice(color);
+                  }}
+                  onSelectToken={(token) => {
+                    if (diceValue && waitingForMove && !isRolling && !walkingTokenKey) {
+                      executeMove(token, diceValue, players);
+                    }
+                  }}
+                />
+              </div>
 
               {/* Combat Hotspot Knockout Popup (+5 pts Indicator) */}
               <AnimatePresence>
@@ -1769,90 +1887,37 @@ export const PlayLudoPage: React.FC<{
               </AnimatePresence>
             </div>
 
-            {/* ================= MERGED CURRENT TURN & DICE CONTROLLER CARD ================= */}
-            <div
-              id="ludo-turn-and-dice-panel"
-              className={`bg-white dark:bg-zinc-900 rounded-3xl p-4 sm:p-5 border-2 shadow-xl transition-all ${
-                COLOR_CONFIG[turnColor].borderClass
-              } ring-2 ring-amber-400/20`}
-            >
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                {/* Player Info & Turn Status */}
-                <div className="flex items-center space-x-3.5 w-full sm:w-auto min-w-0">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-md shrink-0 border border-white/20"
-                    style={{ background: COLOR_CONFIG[turnColor].bgHex }}
-                  >
-                    {currentActivePlayer?.isBot ? (
-                      <Bot className="w-6 h-6" />
-                    ) : (
-                      <User className="w-6 h-6" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                        {COLOR_CONFIG[turnColor].name} Turn
-                      </span>
-                      {diceValue && !isRolling && (
-                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                          Rolled: {diceValue}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-base sm:text-lg font-black text-zinc-900 dark:text-white truncate mt-0.5">
-                      {currentActivePlayer?.name}
-                    </div>
-                    <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      {waitingForMove ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                          ✨ Tap a highlighted token on the board to move
-                        </span>
-                      ) : currentActivePlayer?.isBot ? (
-                        <span className="text-zinc-500 dark:text-zinc-400">
-                          🤖 AI Bot is rolling automatically...
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 dark:text-amber-400 font-bold">
-                          {activeTurnNotice || 'Tap the dice or roll button to roll'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dice Controller */}
-                <div className="flex items-center justify-center shrink-0">
-                  <LudoDice
-                    value={diceValue}
-                    isRolling={isRolling}
-                    canRoll={
-                      !isTurnLocked &&
-                      !waitingForMove &&
-                      !isRolling &&
-                      !walkingTokenKey &&
-                      diceValue === null &&
-                      !currentActivePlayer?.isBot &&
-                      gameState === 'playing'
-                    }
-                    color={turnColor}
-                    playerName={currentActivePlayer?.name}
-                    onRoll={() => handleRollDice()}
-                    isBot={currentActivePlayer?.isBot}
-                    hideSubtext={true}
-                  />
-                </div>
-              </div>
+            {/* Quick Helper Prompt Below Board */}
+            <div className="text-center text-xs font-bold text-zinc-500 dark:text-zinc-400 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+              {waitingForMove ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center justify-center gap-1.5 animate-pulse">
+                  ✨ Tap a glowing highlighted token to walk forward
+                </span>
+              ) : currentActivePlayer?.isBot ? (
+                <span className="text-zinc-500 dark:text-zinc-400 font-semibold flex items-center justify-center gap-1.5">
+                  🤖 {currentActivePlayer.name} (Bot) is rolling...
+                </span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 font-extrabold flex items-center justify-center gap-1.5">
+                  🎲 Tap the dice in your {COLOR_CONFIG[turnColor].name} home box to roll!
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Side Panel: Player Cards & Live Log */}
-          <div className="lg:col-span-4 space-y-4">
+          {/* Desktop Side Panel (Hidden on Mobile/Tablet to keep gameplay 100% focused) */}
+          <div className="hidden lg:block lg:col-span-4 space-y-4">
 
             {/* 4 Player Status Cards */}
             <div className="space-y-2.5">
-              <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 px-1">
-                Players & Tokens
+              <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 px-1 flex items-center justify-between">
+                <span>Players & Tokens</span>
+                <button
+                  onClick={() => setShowPlayersModal(true)}
+                  className="text-[10px] text-amber-500 hover:text-amber-400 font-bold cursor-pointer"
+                >
+                  Full View
+                </button>
               </div>
 
               {players.map((p) => {
@@ -1865,7 +1930,7 @@ export const PlayLudoPage: React.FC<{
                 return (
                   <div
                     key={p.color}
-                    className={`p-3.5 rounded-2xl border transition-all ${
+                    className={`p-3 rounded-2xl border transition-all ${
                       isActive
                         ? `bg-white dark:bg-zinc-900 border-2 ${colorCfg.borderClass} shadow-lg ring-2 ring-amber-400/20`
                         : `bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800/80 opacity-85`
@@ -1949,7 +2014,7 @@ export const PlayLudoPage: React.FC<{
               <div className="flex items-center space-x-2 text-xs">
                 <Shield className="w-4 h-4 text-amber-500 shrink-0" />
                 <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-300">
-                  Need a refresher on rules?
+                  Refresher on scoring & rules?
                 </span>
               </div>
               <button
@@ -2140,6 +2205,241 @@ export const PlayLudoPage: React.FC<{
         isOpen={showRulesModal}
         onClose={() => setShowRulesModal(false)}
       />
+
+      {/* Players & Token Progress Modal (Mobile Optimized) */}
+      <AnimatePresence>
+        {showPlayersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-zinc-900 dark:text-white">Players & Standings</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                      Mode: {gameMode === 'quick' ? '⚡ Quick (1 to Home)' : '🏆 Classic (4 to Home)'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  id="btn-close-players-modal"
+                  onClick={() => setShowPlayersModal(false)}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Player Cards */}
+              <div className="space-y-3">
+                {players.map((p) => {
+                  const colorCfg = COLOR_CONFIG[p.color];
+                  const isActive = p.color === turnColor && gameState === 'playing';
+                  const homeCount = p.tokens.filter((t) => t.hasWon || t.step === 56).length;
+                  const trackCount = p.tokens.filter((t) => t.step >= 0 && t.step < 56).length;
+                  const baseCount = p.tokens.filter((t) => t.step === -1).length;
+
+                  return (
+                    <div
+                      key={p.color}
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        isActive
+                          ? `bg-white dark:bg-zinc-900 border-2 ${colorCfg.borderClass} shadow-md ring-2 ring-amber-400/20`
+                          : `bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-xs shrink-0"
+                            style={{ background: colorCfg.bgHex }}
+                          >
+                            {p.isBot ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-extrabold text-zinc-900 dark:text-white truncate flex items-center gap-1.5">
+                              {p.name}
+                              {p.rank && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-400 text-zinc-950 text-[9px] font-black">
+                                  Rank {p.rank}
+                                </span>
+                              )}
+                              {isActive && (
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-black border border-emerald-500/30">
+                                  Turn
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-zinc-400 uppercase font-bold">
+                              {colorCfg.name} Seat
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Badges */}
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center space-x-1 text-[10px] font-extrabold">
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" title="Home Tokens">
+                              🎯 {homeCount}/{gameMode === 'quick' ? 1 : 4}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" title="On Track">
+                              🚶 {trackCount}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400" title="In Base Yard">
+                              🏠 {baseCount}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-1 text-[9px] font-black">
+                            <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title="Kills (+5 pts each)">
+                              ⚔️ {p.kills || 0} (+{(p.kills || 0) * 5})
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20" title="Deaths (-5 pts each)">
+                              💀 {p.deaths || 0} (-{(p.deaths || 0) * 5})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPlayersModal(false)}
+                  className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-800 hover:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Back to Board
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Match Action Logs Modal (Mobile Optimized) */}
+      <AnimatePresence>
+        {showLogsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-zinc-900 dark:text-white">Match Action Log</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                      {gameLogs.length} events recorded
+                    </p>
+                  </div>
+                </div>
+                <button
+                  id="btn-close-logs-modal"
+                  onClick={() => setShowLogsModal(false)}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Scrollable logs list */}
+              <div className="flex-1 overflow-y-auto space-y-1.5 text-xs pr-1 divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                {gameLogs.length === 0 ? (
+                  <div className="py-8 text-center text-zinc-400 text-xs font-semibold">
+                    No actions recorded yet. Roll the dice to begin!
+                  </div>
+                ) : (
+                  gameLogs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`pt-1.5 first:pt-0 ${
+                        idx === 0
+                          ? 'text-zinc-900 dark:text-zinc-100 font-bold bg-amber-500/5 p-1 rounded-lg'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                      }`}
+                    >
+                      {log}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowLogsModal(false)}
+                  className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-800 hover:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Close Log
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Exit Match Confirmation Modal */}
+      <AnimatePresence>
+        {showExitConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-5 sm:p-6 w-full max-w-sm shadow-2xl space-y-4"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto border border-red-500/20">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-black text-zinc-900 dark:text-white">
+                  Quit Active Match?
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                  Leaving will abandon the current match and return to the seat setup screen.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearAllTimers();
+                    clearActiveLudoSession();
+                    setResumedFromCache(false);
+                    setShowExitConfirmModal(false);
+                    setGameState('setup');
+                  }}
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                >
+                  Yes, Quit Match
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExitConfirmModal(false)}
+                  className="w-full py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Continue Playing
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

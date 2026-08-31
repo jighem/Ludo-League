@@ -128,29 +128,40 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
         r.isBot === true ||
         /^bot(\s|-|$)/i.test(fallbackName) ||
         /\(ai\)/i.test(fallbackName) ||
-        /\[bot\]/i.test(fallbackName);
+        /\[bot\]/i.test(fallbackName) ||
+        fallbackName.toLowerCase() === 'bot';
 
-      if (!pid || isNaN(pid) || usedPlayerIds.has(pid)) {
-        // Auto-create or find a distinct player for this seat
+      if (isBot) {
+        // Find or create dedicated bot player record
+        const botName = fallbackName.toLowerCase().includes('bot') ? fallbackName : `Bot ${fallbackName} (AI)`;
+        const existingBot = await query<any>('SELECT id FROM players WHERE LOWER(full_name) = LOWER(?) AND is_bot = 1', [botName]);
+        if (existingBot.length > 0 && !usedPlayerIds.has(Number(existingBot[0].id))) {
+          pid = Number(existingBot[0].id);
+        } else {
+          const uniqueBotName = usedPlayerIds.has(pid) ? `${botName} ${i + 1}` : botName;
+          const dateJoined = new Date().toISOString().split('T')[0];
+          const insRes = await execute(
+            `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
+             VALUES (?, ?, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [uniqueBotName, dateJoined]
+          );
+          pid = insRes.insertId;
+        }
+      } else if (!pid || isNaN(pid) || usedPlayerIds.has(pid)) {
+        // Find or create human player
         const existing = await query<any>('SELECT id, is_bot FROM players WHERE LOWER(full_name) = LOWER(?)', [fallbackName]);
         if (existing.length > 0 && !usedPlayerIds.has(Number(existing[0].id))) {
           pid = Number(existing[0].id);
-          if (isBot && !existing[0].is_bot) {
-            await execute('UPDATE players SET is_bot = 1 WHERE id = ?', [pid]);
-          }
         } else {
           const uniqueName = usedPlayerIds.has(pid) ? `${fallbackName} ${i + 1}` : fallbackName;
           const dateJoined = new Date().toISOString().split('T')[0];
           const insRes = await execute(
             `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
-             VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-            [uniqueName, dateJoined, isBot ? 1 : 0]
+             VALUES (?, ?, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [uniqueName, dateJoined]
           );
           pid = insRes.insertId;
         }
-      } else if (isBot) {
-        // Ensure flagged as bot
-        await execute('UPDATE players SET is_bot = 1 WHERE id = ?', [pid]);
       }
 
       usedPlayerIds.add(pid);
@@ -327,6 +338,29 @@ router.get('/', optionalAuthenticateToken, async (req, res) => {
           m.match_date = String(m.match_date).split('T')[0];
         }
         m.results = allResults.filter((r) => r.match_id === m.id);
+        if (typeof m.action_logs === 'string') {
+          try {
+            m.action_logs = JSON.parse(m.action_logs);
+          } catch {
+            m.action_logs = [];
+          }
+        }
+        if (typeof m.kill_logs === 'string') {
+          try {
+            m.kill_logs = JSON.parse(m.kill_logs);
+          } catch {
+            m.kill_logs = [];
+          }
+        }
+      });
+    } else {
+      matches.forEach((m) => {
+        if (typeof m.action_logs === 'string') {
+          try { m.action_logs = JSON.parse(m.action_logs); } catch { m.action_logs = []; }
+        }
+        if (typeof m.kill_logs === 'string') {
+          try { m.kill_logs = JSON.parse(m.kill_logs); } catch { m.kill_logs = []; }
+        }
       });
     }
 
@@ -365,6 +399,15 @@ router.get('/:id', optionalAuthenticateToken, async (req, res) => {
     );
 
     const match = matches[0];
+    if (match.match_date && String(match.match_date).includes('T')) {
+      match.match_date = String(match.match_date).split('T')[0];
+    }
+    if (typeof match.action_logs === 'string') {
+      try { match.action_logs = JSON.parse(match.action_logs); } catch { match.action_logs = []; }
+    }
+    if (typeof match.kill_logs === 'string') {
+      try { match.kill_logs = JSON.parse(match.kill_logs); } catch { match.kill_logs = []; }
+    }
     match.results = results;
 
     return res.json({ match });

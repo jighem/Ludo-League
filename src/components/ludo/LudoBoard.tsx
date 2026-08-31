@@ -8,15 +8,18 @@ import {
   COLOR_CONFIG
 } from '../../utils/ludoEngine';
 import { Crown, Star, ArrowRight, ArrowDown, ArrowLeft, ArrowUp } from 'lucide-react';
+import { LudoDice } from './LudoDice';
 
 interface LudoBoardProps {
   players: LudoPlayer[];
   activeColor: LudoColor;
   diceValue: number | null;
   isRolling: boolean;
+  canRoll?: boolean;
   waitingForMove: boolean;
   walkingTokenKey?: string | null;
   onSelectToken: (token: LudoToken) => void;
+  onRollDice?: (color?: LudoColor) => void;
 }
 
 interface PlacedToken {
@@ -34,9 +37,11 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
   activeColor,
   diceValue,
   isRolling,
+  canRoll = false,
   waitingForMove,
   walkingTokenKey,
   onSelectToken,
+  onRollDice,
 }) => {
   // Find current active player
   const activePlayer = useMemo(
@@ -144,59 +149,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
     );
   };
 
-  // Helper to render color-coded Kills & Killed-By breakdown tokens
-  const renderYardCombatTokens = (player?: LudoPlayer, align: 'left' | 'right' = 'left') => {
-    if (!player) return null;
-    const killed = player.killedOpponents || {};
-    const deaths = player.killedBy || {};
-
-    const killedEntries = (Object.entries(killed) as [LudoColor, number][]).filter(([_, cnt]) => (cnt || 0) > 0);
-    const deathEntries = (Object.entries(deaths) as [LudoColor, number][]).filter(([_, cnt]) => (cnt || 0) > 0);
-
-    if (killedEntries.length === 0 && deathEntries.length === 0) return null;
-
-    return (
-      <div
-        className={`absolute top-6.5 sm:top-7 ${
-          align === 'left' ? 'left-1.5 items-start' : 'right-1.5 items-end'
-        } flex flex-col gap-0.5 z-10 pointer-events-none`}
-      >
-        {killedEntries.length > 0 && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-950/90 border border-red-500/40 text-white text-[7px] sm:text-[8px] font-bold shadow-xs backdrop-blur-xs">
-            <span className="text-red-400 font-extrabold">⚔️</span>
-            <div className="flex items-center gap-1">
-              {killedEntries.map(([col, cnt]) => (
-                <span key={col} className="flex items-center gap-0.5">
-                  <span
-                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${COLOR_DOT_STYLES[col].bg} border ${COLOR_DOT_STYLES[col].border} inline-block shadow-xs shrink-0`}
-                    title={`Killed ${col} token`}
-                  />
-                  <span className="text-zinc-200 font-extrabold">{cnt}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {deathEntries.length > 0 && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-950/90 border border-purple-500/40 text-white text-[7px] sm:text-[8px] font-bold shadow-xs backdrop-blur-xs">
-            <span className="text-purple-400 font-extrabold">💀</span>
-            <div className="flex items-center gap-1">
-              {deathEntries.map(([col, cnt]) => (
-                <span key={col} className="flex items-center gap-0.5">
-                  <span
-                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${COLOR_DOT_STYLES[col].bg} border ${COLOR_DOT_STYLES[col].border} inline-block shadow-xs shrink-0`}
-                    title={`Killed by ${col} token`}
-                  />
-                  <span className="text-zinc-200 font-extrabold">{cnt}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Helper to render Bottom Counter (Home + Kills + Deaths)
   const renderYardBottomCounter = (player?: LudoPlayer, align: 'left' | 'right' = 'left') => {
     if (!player) return null;
@@ -208,7 +160,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         } px-1.5 sm:px-2 py-0.5 rounded-full bg-zinc-950/90 text-white text-[7.5px] sm:text-[8.5px] font-bold border border-white/20 flex items-center gap-1 sm:gap-1.5 shadow-sm backdrop-blur-xs z-10`}
       >
         <span className="flex items-center gap-0.5 sm:gap-1">
-          <span>🏠 Home:</span>
+          <span>🏠</span>
           <span className="text-amber-300 font-extrabold">{homeCount}/4</span>
         </span>
         <span className="text-zinc-600">|</span>
@@ -274,16 +226,44 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 1. TOP-LEFT: RED BASE YARD (6x6: Row 0..5, Col 0..5)                     */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-red-600 p-3 sm:p-4.5 flex items-center justify-center relative border-r-2 border-b-2 border-zinc-950">
-          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-red-700/40 relative overflow-hidden">
+        <div
+          className={`col-span-6 row-span-6 bg-red-600 p-3 sm:p-4 flex items-center justify-center relative border-r-2 border-b-2 border-zinc-950 transition-all ${
+            activeColor === 'red' && canRoll && !redPlayer?.isBot ? 'cursor-pointer' : ''
+          }`}
+          onClick={() => {
+            if (activeColor === 'red' && canRoll && !redPlayer?.isBot) {
+              onRollDice?.('red');
+            }
+          }}
+        >
+          <div className="w-[84%] h-[84%] bg-white rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 grid-rows-2 place-items-center shadow-md border-2 border-red-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-red-500 border-2 border-red-800 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-6.5 sm:h-6.5 rounded-full bg-red-500 border-2 border-red-800 shadow-inner flex items-center justify-center"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
+
+            {/* Interactive Dice in the Middle of Home Box during Red Turn */}
+            {activeColor === 'red' && !redPlayer?.rank && (
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 transition-all ${
+                waitingForMove ? 'pointer-events-none scale-85 opacity-75' : 'pointer-events-auto'
+              }`}>
+                <LudoDice
+                  value={diceValue}
+                  isRolling={isRolling}
+                  canRoll={canRoll && !redPlayer?.isBot}
+                  color="red"
+                  playerName={redPlayer?.name}
+                  onRoll={() => onRollDice?.('red')}
+                  isBot={redPlayer?.isBot}
+                  hideSubtext={true}
+                  size="yard"
+                />
+              </div>
+            )}
 
             {/* Position / Rank Overlay Badge on Finish */}
             {renderYardPositionBadge(redPlayer)}
@@ -291,9 +271,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Player Name Header */}
           {renderYardPlayerHeader(redPlayer, 'left')}
-
-          {/* Color-coded Kills & Killed-By breakdown tokens */}
-          {renderYardCombatTokens(redPlayer, 'left')}
 
           {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
           {renderYardBottomCounter(redPlayer, 'left')}
@@ -337,16 +314,44 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 3. TOP-RIGHT: GREEN BASE YARD (6x6: Row 0..5, Col 9..14)                 */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-emerald-600 p-3 sm:p-4.5 flex items-center justify-center relative border-l-2 border-b-2 border-zinc-950">
-          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-emerald-700/40 relative overflow-hidden">
+        <div
+          className={`col-span-6 row-span-6 bg-emerald-600 p-3 sm:p-4 flex items-center justify-center relative border-l-2 border-b-2 border-zinc-950 transition-all ${
+            activeColor === 'green' && canRoll && !greenPlayer?.isBot ? 'cursor-pointer' : ''
+          }`}
+          onClick={() => {
+            if (activeColor === 'green' && canRoll && !greenPlayer?.isBot) {
+              onRollDice?.('green');
+            }
+          }}
+        >
+          <div className="w-[84%] h-[84%] bg-white rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 grid-rows-2 place-items-center shadow-md border-2 border-emerald-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-emerald-500 border-2 border-emerald-800 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-6.5 sm:h-6.5 rounded-full bg-emerald-500 border-2 border-emerald-800 shadow-inner flex items-center justify-center"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
+
+            {/* Interactive Dice in the Middle of Home Box during Green Turn */}
+            {activeColor === 'green' && !greenPlayer?.rank && (
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 transition-all ${
+                waitingForMove ? 'pointer-events-none scale-85 opacity-75' : 'pointer-events-auto'
+              }`}>
+                <LudoDice
+                  value={diceValue}
+                  isRolling={isRolling}
+                  canRoll={canRoll && !greenPlayer?.isBot}
+                  color="green"
+                  playerName={greenPlayer?.name}
+                  onRoll={() => onRollDice?.('green')}
+                  isBot={greenPlayer?.isBot}
+                  hideSubtext={true}
+                  size="yard"
+                />
+              </div>
+            )}
 
             {/* Position / Rank Overlay Badge on Finish */}
             {renderYardPositionBadge(greenPlayer)}
@@ -354,9 +359,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Player Name Header */}
           {renderYardPlayerHeader(greenPlayer, 'right')}
-
-          {/* Color-coded Kills & Killed-By breakdown tokens */}
-          {renderYardCombatTokens(greenPlayer, 'right')}
 
           {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
           {renderYardBottomCounter(greenPlayer, 'right')}
@@ -482,16 +484,44 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 7. BOTTOM-LEFT: BLUE BASE YARD (6x6: Row 9..14, Col 0..5)                */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-blue-600 p-3 sm:p-4.5 flex items-center justify-center relative border-r-2 border-t-2 border-zinc-950">
-          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-blue-700/40 relative overflow-hidden">
+        <div
+          className={`col-span-6 row-span-6 bg-blue-600 p-3 sm:p-4 flex items-center justify-center relative border-r-2 border-t-2 border-zinc-950 transition-all ${
+            activeColor === 'blue' && canRoll && !bluePlayer?.isBot ? 'cursor-pointer' : ''
+          }`}
+          onClick={() => {
+            if (activeColor === 'blue' && canRoll && !bluePlayer?.isBot) {
+              onRollDice?.('blue');
+            }
+          }}
+        >
+          <div className="w-[84%] h-[84%] bg-white rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 grid-rows-2 place-items-center shadow-md border-2 border-blue-700/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-blue-500 border-2 border-blue-800 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-6.5 sm:h-6.5 rounded-full bg-blue-500 border-2 border-blue-800 shadow-inner flex items-center justify-center"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
+
+            {/* Interactive Dice in the Middle of Home Box during Blue Turn */}
+            {activeColor === 'blue' && !bluePlayer?.rank && (
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 transition-all ${
+                waitingForMove ? 'pointer-events-none scale-85 opacity-75' : 'pointer-events-auto'
+              }`}>
+                <LudoDice
+                  value={diceValue}
+                  isRolling={isRolling}
+                  canRoll={canRoll && !bluePlayer?.isBot}
+                  color="blue"
+                  playerName={bluePlayer?.name}
+                  onRoll={() => onRollDice?.('blue')}
+                  isBot={bluePlayer?.isBot}
+                  hideSubtext={true}
+                  size="yard"
+                />
+              </div>
+            )}
 
             {/* Position / Rank Overlay Badge on Finish */}
             {renderYardPositionBadge(bluePlayer)}
@@ -499,9 +529,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Player Name Header */}
           {renderYardPlayerHeader(bluePlayer, 'left')}
-
-          {/* Color-coded Kills & Killed-By breakdown tokens */}
-          {renderYardCombatTokens(bluePlayer, 'left')}
 
           {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
           {renderYardBottomCounter(bluePlayer, 'left')}
@@ -545,16 +572,44 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         {/* ========================================================================= */}
         {/* 9. BOTTOM-RIGHT: YELLOW BASE YARD (6x6: Row 9..14, Col 9..14)            */}
         {/* ========================================================================= */}
-        <div className="col-span-6 row-span-6 bg-amber-400 p-3 sm:p-4.5 flex items-center justify-center relative border-l-2 border-t-2 border-zinc-950">
-          <div className="w-[82%] h-[82%] bg-white rounded-2xl p-1.5 sm:p-2.5 grid grid-cols-2 grid-rows-2 gap-2 sm:gap-3 place-items-center shadow-md border-2 border-amber-600/40 relative overflow-hidden">
+        <div
+          className={`col-span-6 row-span-6 bg-amber-400 p-3 sm:p-4 flex items-center justify-center relative border-l-2 border-t-2 border-zinc-950 transition-all ${
+            activeColor === 'yellow' && canRoll && !yellowPlayer?.isBot ? 'cursor-pointer' : ''
+          }`}
+          onClick={() => {
+            if (activeColor === 'yellow' && canRoll && !yellowPlayer?.isBot) {
+              onRollDice?.('yellow');
+            }
+          }}
+        >
+          <div className="w-[84%] h-[84%] bg-white rounded-2xl p-2 sm:p-2.5 grid grid-cols-2 grid-rows-2 place-items-center shadow-md border-2 border-amber-600/40 relative overflow-hidden">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-amber-400 border-2 border-amber-700 shadow-inner flex items-center justify-center"
+                className="w-5 h-5 sm:w-6.5 sm:h-6.5 rounded-full bg-amber-400 border-2 border-amber-700 shadow-inner flex items-center justify-center"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
               </div>
             ))}
+
+            {/* Interactive Dice in the Middle of Home Box during Yellow Turn */}
+            {activeColor === 'yellow' && !yellowPlayer?.rank && (
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 transition-all ${
+                waitingForMove ? 'pointer-events-none scale-85 opacity-75' : 'pointer-events-auto'
+              }`}>
+                <LudoDice
+                  value={diceValue}
+                  isRolling={isRolling}
+                  canRoll={canRoll && !yellowPlayer?.isBot}
+                  color="yellow"
+                  playerName={yellowPlayer?.name}
+                  onRoll={() => onRollDice?.('yellow')}
+                  isBot={yellowPlayer?.isBot}
+                  hideSubtext={true}
+                  size="yard"
+                />
+              </div>
+            )}
 
             {/* Position / Rank Overlay Badge on Finish */}
             {renderYardPositionBadge(yellowPlayer)}
@@ -562,9 +617,6 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
 
           {/* Player Name Header */}
           {renderYardPlayerHeader(yellowPlayer, 'right')}
-
-          {/* Color-coded Kills & Killed-By breakdown tokens */}
-          {renderYardCombatTokens(yellowPlayer, 'right')}
 
           {/* Home Tokens & Combat (Kills/Deaths) Counter Badge */}
           {renderYardBottomCounter(yellowPlayer, 'right')}
@@ -639,13 +691,13 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                   top: `${topPct}%`,
                   width: `${cellWidthPct}%`,
                   height: `${cellWidthPct}%`,
-                  zIndex: isWalking ? 60 : isMovable ? 45 : 15 + stackIdx,
+                  zIndex: isWalking ? 60 : isMovable ? 50 : 25 + stackIdx,
                   transition: isWalking
-                    ? 'left 160ms cubic-bezier(0.25, 1, 0.5, 1), top 160ms cubic-bezier(0.25, 1, 0.5, 1)'
-                    : 'left 220ms ease-out, top 220ms ease-out',
+                    ? 'left 75ms linear, top 75ms linear'
+                    : 'left 80ms ease-out, top 80ms ease-out',
                 }}
-                className={`absolute flex items-center justify-center ${
-                  isMovable && !isWalking ? 'cursor-pointer' : 'cursor-default pointer-events-none'
+                className={`absolute flex items-center justify-center touch-manipulation ${
+                  isMovable && !isWalking ? 'cursor-pointer pointer-events-auto active:scale-95' : 'cursor-default pointer-events-none'
                 }`}
               >
                 {/* Authentic 3D Pawn with dynamic multi-token scaling */}
@@ -655,7 +707,7 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                     isWalking
                       ? 'scale-125 -translate-y-2'
                       : isMovable
-                      ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-zinc-950 rounded-full animate-bounce'
+                      ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-zinc-950 rounded-full animate-bounce scale-110'
                       : ''
                   } ${token.hasWon ? 'opacity-85 scale-90' : ''}`}
                 >

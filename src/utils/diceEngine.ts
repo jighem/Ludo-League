@@ -105,14 +105,21 @@ function getUniformRandomIndex(n: number): number {
  * 3. Safe zones (start stars, track stars, home stretch, and home finish) permit multiple same-color tokens.
  */
 export function rollFairDice(player?: LudoPlayer): DiceValue {
-  const allFaces: DiceValue[] = [1, 2, 3, 4, 5, 6];
+  let allFaces: DiceValue[] = [1, 2, 3, 4, 5, 6];
+
+  // If player already rolled 2 consecutive sixes in this turn, restrict faces to non-6 [1..5].
+  // This ensures the player always receives a playable non-6 roll (1-5) on the third roll,
+  // preventing any turn forfeiture while keeping the game moving forward smoothly.
+  if (player && player.consecutiveSixes >= 2) {
+    allFaces = [1, 2, 3, 4, 5];
+  }
 
   // Check if player is passed and currently has 0 tokens on the track
   if (player && player.tokens) {
     const tokensOnTrack = player.tokens.filter((t) => t.step >= 0 && t.step <= 55).length;
     const tokensInYard = player.tokens.filter((t) => t.step === -1).length;
 
-    if (tokensOnTrack === 0 && tokensInYard > 0) {
+    if (tokensOnTrack === 0 && tokensInYard > 0 && (!player.consecutiveSixes || player.consecutiveSixes < 2)) {
       if (!yardPityMap[player.color]) {
         yardPityMap[player.color] = {
           failedSixAttempts: 0,
@@ -147,11 +154,12 @@ export function rollFairDice(player?: LudoPlayer): DiceValue {
       const idx = getUniformRandomIndex(candidateFaces.length);
       chosenValue = candidateFaces[idx];
     } else {
-      chosenValue = (getUniformRandomIndex(6) + 1) as DiceValue;
+      const idx = getUniformRandomIndex(allFaces.length);
+      chosenValue = allFaces[idx];
     }
 
     // Update yard pity tracking if player is waiting with 0 tokens on track
-    if (tokensOnTrack === 0 && tokensInYard > 0) {
+    if (tokensOnTrack === 0 && tokensInYard > 0 && (!player.consecutiveSixes || player.consecutiveSixes < 2)) {
       if (chosenValue === 6) {
         yardPityMap[player.color] = {
           failedSixAttempts: 0,

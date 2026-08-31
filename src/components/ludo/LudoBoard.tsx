@@ -179,13 +179,13 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
         : 'bg-blue-600';
 
     return (
-      <div className={`w-full h-full ${bgYardClass} p-1 sm:p-1.5 flex flex-col justify-between items-center relative select-none`}>
-        {/* Top Header: Player Name & Avatar Badge */}
+      <div className={`w-full h-full ${bgYardClass} p-1 sm:p-1.5 flex items-center justify-center relative select-none`}>
+        {/* Top Header: Player Name & Avatar Floating Overlay Pill */}
         <div
-          className={`w-full flex items-center justify-between px-1.5 py-0.5 sm:py-1 rounded-lg transition-all ${
+          className={`absolute top-1 sm:top-1.5 inset-x-1.5 sm:inset-x-2 z-20 flex items-center justify-between px-1.5 py-0.5 sm:py-1 rounded-full border transition-all backdrop-blur-xs ${
             isCurrentActive
-              ? 'bg-zinc-950/90 text-white ring-2 ring-amber-400 shadow-md scale-[1.02]'
-              : 'bg-zinc-950/70 text-zinc-200'
+              ? 'bg-zinc-950/95 text-white border-amber-400 ring-2 ring-amber-400/50 shadow-md scale-[1.02]'
+              : 'bg-zinc-950/85 text-zinc-200 border-white/20 shadow-xs'
           }`}
         >
           <div className="flex items-center gap-1 min-w-0">
@@ -199,33 +199,33 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                 <User className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white drop-shadow-xs" />
               )}
             </div>
-            <span className="text-[9px] sm:text-[11px] font-black truncate max-w-[65px] sm:max-w-[85px]">
+            <span className="text-[8.5px] sm:text-[10.5px] font-black truncate max-w-[65px] sm:max-w-[85px]">
               {playerName}
             </span>
           </div>
 
           {player?.rank ? (
-            <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-amber-400 text-zinc-950 font-black shrink-0">
+            <span className="text-[7.5px] sm:text-[8.5px] px-1.5 py-0.2 rounded-full bg-amber-400 text-zinc-950 font-black shrink-0">
               #{player.rank}
             </span>
           ) : isCurrentActive && !waitingForMove ? (
-            <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-amber-400 text-zinc-950 font-black animate-pulse shrink-0">
+            <span className="text-[7.5px] sm:text-[8.5px] px-1.5 py-0.2 rounded-full bg-amber-400 text-zinc-950 font-black animate-pulse shrink-0">
               ROLL
             </span>
           ) : null}
         </div>
 
-        {/* Center White Yard Area containing 4 token sockets & central Dice */}
-        <div className="w-[88%] h-[65%] sm:h-[68%] bg-white rounded-xl sm:rounded-2xl p-1 sm:p-1.5 relative shadow-md border-2 border-zinc-950/20 flex items-center justify-center">
+        {/* Center White Yard Area: Proper 1:1 Square with Max Height & Width */}
+        <div className="w-[78%] sm:w-[80%] aspect-square bg-white rounded-2xl p-1.5 sm:p-2 relative shadow-md border-2 border-zinc-950/20 flex items-center justify-center">
           {/* 4 Corner Token Sockets */}
-          <div className="absolute inset-1 grid grid-cols-2 grid-rows-2 place-items-center pointer-events-none">
+          <div className="absolute inset-1.5 sm:inset-2 grid grid-cols-2 grid-rows-2 place-items-center pointer-events-none">
             {[0, 1, 2, 3].map((slotIdx) => (
               <div
                 key={slotIdx}
-                className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-stone-50 border-2 border-zinc-300 shadow-inner flex items-center justify-center"
+                className="w-6 h-6 sm:w-7.5 sm:h-7.5 rounded-full bg-stone-50 border-2 border-zinc-300 shadow-inner flex items-center justify-center"
               >
                 <div
-                  className="w-2 h-2 sm:w-3 sm:h-3 rounded-full opacity-35"
+                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full opacity-35"
                   style={{ backgroundColor: colorCfg.bgHex }}
                 />
               </div>
@@ -267,8 +267,8 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
           {renderYardPositionBadge(player)}
         </div>
 
-        {/* Bottom Stat Pill: Home Progress, Kills, Deaths */}
-        <div className="w-full flex items-center justify-around px-1 py-0.5 rounded-md bg-zinc-950/80 text-[8px] sm:text-[9.5px] font-bold text-white shadow-xs">
+        {/* Bottom Stat Pill: Floating Overlay for Home Progress, Kills, Deaths */}
+        <div className="absolute bottom-1 sm:bottom-1.5 inset-x-2 sm:inset-x-2.5 z-20 flex items-center justify-around px-1.5 py-0.5 rounded-full bg-zinc-950/90 border border-white/20 text-[8px] sm:text-[9.5px] font-bold text-white shadow-md backdrop-blur-xs">
           <span className="text-amber-300 flex items-center gap-0.5">
             <span>🏠</span>
             <span>{homeCount}/4</span>

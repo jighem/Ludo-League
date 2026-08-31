@@ -152,35 +152,35 @@ export const FINISH_POSITIONS: Record<LudoColor, GridPos[]> = {
   ]
 };
 
-// Base yard spawn coordinates for tokens (Row, Col) positioned at 4 corners around central dice in 6x6 yards
+// Base yard spawn coordinates for tokens (Row, Col) positioned symmetrically in 1:1 square home yards
 export const BASE_POSITIONS: Record<LudoColor, GridPos[]> = {
-  // Top-Left: Red Base (Rows 0..5, Cols 0..5, centered around Row 2.5, Col 2.5)
+  // Top-Left: Red Base (Rows 0..5, Cols 0..5, centered at Row 2.5, Col 2.5)
   red: [
-    { row: 1.1, col: 1.1 },
-    { row: 1.1, col: 3.9 },
-    { row: 3.9, col: 1.1 },
-    { row: 3.9, col: 3.9 },
+    { row: 1.3, col: 1.3 },
+    { row: 1.3, col: 3.7 },
+    { row: 3.7, col: 1.3 },
+    { row: 3.7, col: 3.7 },
   ],
-  // Top-Right: Green Base (Rows 0..5, Cols 9..14, centered around Row 2.5, Col 11.5)
+  // Top-Right: Green Base (Rows 0..5, Cols 9..14, centered at Row 2.5, Col 11.5)
   green: [
-    { row: 1.1, col: 10.1 },
-    { row: 1.1, col: 12.9 },
-    { row: 3.9, col: 10.1 },
-    { row: 3.9, col: 12.9 },
+    { row: 1.3, col: 10.3 },
+    { row: 1.3, col: 12.7 },
+    { row: 3.7, col: 10.3 },
+    { row: 3.7, col: 12.7 },
   ],
-  // Bottom-Right: Yellow Base (Rows 9..14, Cols 9..14, centered around Row 11.5, Col 11.5)
+  // Bottom-Right: Yellow Base (Rows 9..14, Cols 9..14, centered at Row 11.5, Col 11.5)
   yellow: [
-    { row: 10.1, col: 10.1 },
-    { row: 10.1, col: 12.9 },
-    { row: 12.9, col: 10.1 },
-    { row: 12.9, col: 12.9 },
+    { row: 10.3, col: 10.3 },
+    { row: 10.3, col: 12.7 },
+    { row: 12.7, col: 10.3 },
+    { row: 12.7, col: 12.7 },
   ],
-  // Bottom-Left: Blue Base (Rows 9..14, Cols 0..5, centered around Row 11.5, Col 2.5)
+  // Bottom-Left: Blue Base (Rows 9..14, Cols 0..5, centered at Row 11.5, Col 2.5)
   blue: [
-    { row: 10.1, col: 1.1 },
-    { row: 10.1, col: 3.9 },
-    { row: 12.9, col: 1.1 },
-    { row: 12.9, col: 3.9 },
+    { row: 10.3, col: 1.3 },
+    { row: 10.3, col: 3.7 },
+    { row: 12.7, col: 1.3 },
+    { row: 12.7, col: 3.7 },
   ]
 };
 

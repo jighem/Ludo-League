@@ -330,7 +330,16 @@ export function wouldMoveCauseSameColorUnsafeStack(
     );
   }
 
-  // Home stretch (51..55) and Home Finish (56) are Safe Zones - stacking allowed
+  // Home stretch (steps 51..55) - each tile holds 1 token, finish step 56 holds all finished tokens
+  if (targetStep >= 51 && targetStep <= 55) {
+    return player.tokens.some(
+      (otherToken) =>
+        otherToken.id !== token.id &&
+        otherToken.step === targetStep
+    );
+  }
+
+  // Home Finish (56) is a Safe Winning Zone - all 4 tokens can stack and celebrate
   return false;
 }
 
@@ -354,6 +363,18 @@ export function canTokenMove(token: LudoToken, dice: number, player?: LudoPlayer
 export function getMovableTokens(player: LudoPlayer, dice: number): LudoToken[] {
   if (!dice) return [];
   return player.tokens.filter((t) => canTokenMove(t, dice, player));
+}
+
+/**
+ * Evaluates whether moving ANY token of the player with the given candidate dice roll
+ * would cause that token to land on another same-color token's square.
+ * Used by the dice engine to prevent rolling numbers that would cause two same-color tokens to reach the same square.
+ */
+export function wouldAnyMoveCauseSameColorCollision(player: LudoPlayer, dice: number): boolean {
+  return player.tokens.some((token) => {
+    if (calculateTargetStep(token, dice) === null) return false;
+    return wouldMoveCauseSameColorUnsafeStack(player, token, dice);
+  });
 }
 
 /**

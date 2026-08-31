@@ -203,6 +203,15 @@ export const PlayLudoPage: React.FC<{
   useEffect(() => { gameLogsRef.current = gameLogs; }, [gameLogs]);
   useEffect(() => { isTurnLockedRef.current = isTurnLocked; }, [isTurnLocked]);
 
+  // Robust Auto-dismiss for Knockout Combat Popup (never gets stuck by turn changes)
+  useEffect(() => {
+    if (!combatPopup) return;
+    const timer = setTimeout(() => {
+      setCombatPopup(null);
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [combatPopup]);
+
   // Clear all pending timeouts
   const clearAllTimers = () => {
     if (botRollTimerRef.current) {
@@ -571,9 +580,9 @@ export const PlayLudoPage: React.FC<{
     return null;
   };
 
-  // Add event to live log
+  // Add event to live log (preserves complete game action history)
   const logEvent = (msg: string) => {
-    setGameLogs((prev) => [msg, ...prev.slice(0, 20)]);
+    setGameLogs((prev) => [msg, ...prev]);
   };
 
   // Helper sleep for animations
@@ -932,7 +941,7 @@ export const PlayLudoPage: React.FC<{
 
           // Trigger Combat Hotspot Visual Shake
           setIsCombatShaking(true);
-          setTimeout(() => setIsCombatShaking(false), 480);
+          setTimeout(() => setIsCombatShaking(false), 300);
 
           // Trigger Combat Popup (+5 pts kill indicator)
           setCombatPopup({
@@ -942,7 +951,6 @@ export const PlayLudoPage: React.FC<{
             victimColor: capturedVictimColors[0] || 'red',
             points: 5 * totalCapturedTokens,
           });
-          setTimeout(() => setCombatPopup(null), 2500);
 
           // Update attacker's kills and color-coded killedOpponents count
           updatedPlayers = updatedPlayers.map((p) => {
@@ -1859,8 +1867,9 @@ export const PlayLudoPage: React.FC<{
                     initial={{ opacity: 0, scale: 0.65, y: 15 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.75, y: -20 }}
-                    transition={{ type: 'spring', damping: 14, stiffness: 220 }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none w-full max-w-[320px] px-3"
+                    transition={{ duration: 0.16 }}
+                    onClick={() => setCombatPopup(null)}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 cursor-pointer w-full max-w-[320px] px-3 select-none"
                   >
                     <div className="bg-zinc-950/95 border-2 border-amber-400 rounded-3xl p-4 shadow-2xl ring-4 ring-red-500/50 backdrop-blur-md text-center flex flex-col items-center gap-2">
                       <div className="flex items-center gap-2 bg-red-600/90 text-white text-[11px] sm:text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md">

@@ -514,42 +514,42 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
               const isAtHomeBase = token.step === -1;
               if (count > 1 && !isAtHomeBase && !isWalking) {
                 if (count === 2) {
-                  // 2 tokens: Place top-left and bottom-right
+                  // 2 tokens: Place top-left and bottom-right with clear separation
                   const offsets = [
-                    { x: -1.35, y: -1.35 },
-                    { x: 1.35, y: 1.35 }
+                    { x: -1.6, y: -1.6 },
+                    { x: 1.6, y: 1.6 }
                   ];
                   leftPct += offsets[stackIdx % 2].x;
                   topPct += offsets[stackIdx % 2].y;
                 } else if (count === 3) {
                   // 3 tokens: Triangle placement
                   const offsets = [
-                    { x: 0, y: -1.5 },
-                    { x: -1.45, y: 1.25 },
-                    { x: 1.45, y: 1.25 }
+                    { x: 0, y: -1.6 },
+                    { x: -1.5, y: 1.3 },
+                    { x: 1.5, y: 1.3 }
                   ];
                   leftPct += offsets[stackIdx % 3].x;
                   topPct += offsets[stackIdx % 3].y;
                 } else {
-                  // 4 tokens: 2x2 grid placement
+                  // 4 tokens: 2x2 quadrant grid placement
                   const offsets = [
-                    { x: -1.4, y: -1.4 },
-                    { x: 1.4, y: -1.4 },
-                    { x: -1.4, y: 1.4 },
-                    { x: 1.4, y: 1.4 }
+                    { x: -1.5, y: -1.5 },
+                    { x: 1.5, y: -1.5 },
+                    { x: -1.5, y: 1.5 },
+                    { x: 1.5, y: 1.5 }
                   ];
                   leftPct += offsets[stackIdx % 4].x;
                   topPct += offsets[stackIdx % 4].y;
                 }
               }
 
-              // Dynamic scaling: when multiple tokens sit on the same track cell, shrink tokens so all are visible
+              // Dynamic scaling: when multiple tokens sit on the same track cell, scale appropriately so all tokens are distinct
               const multiScale = (count > 1 && !isAtHomeBase && !isWalking)
                 ? count === 2
-                  ? 0.78
+                  ? 0.74
                   : count === 3
-                  ? 0.66
-                  : 0.56
+                  ? 0.62
+                  : 0.52
                 : 1;
 
               return (
@@ -578,45 +578,45 @@ export const LudoBoard: React.FC<LudoBoardProps> = ({
                     style={{ transform: `scale(${multiScale})` }}
                     className={`relative flex flex-col items-center justify-center transition-transform origin-center ${
                       isWalking
-                        ? 'scale-125 -translate-y-2'
+                        ? '-translate-y-1.5'
                         : isMovable
-                        ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-zinc-950 rounded-full animate-bounce scale-110'
+                        ? 'ring-2 sm:ring-3 ring-amber-400 ring-offset-1 ring-offset-zinc-950 rounded-full animate-bounce'
                         : ''
                     } ${token.hasWon ? 'opacity-85 scale-90' : ''}`}
                   >
-                    {/* Outer Teardrop/Pin Body */}
+                    {/* Outer Teardrop/Pin Body - Proportional to square */}
                     <div
-                      className="relative w-6.5 h-6.5 sm:w-8.5 sm:h-8.5 rounded-full border-2 border-white dark:border-zinc-950 shadow-lg flex items-center justify-center"
+                      className="relative w-5.5 h-5.5 sm:w-6.5 sm:h-6.5 rounded-full border-2 border-white dark:border-zinc-950 shadow-md flex items-center justify-center"
                       style={{
                         background: colorCfg.tokenGradient,
                         boxShadow: isWalking
-                          ? `0 0 20px ${colorCfg.bgHex}, 0 8px 16px rgba(0,0,0,0.6)`
+                          ? `0 0 16px ${colorCfg.bgHex}, 0 6px 12px rgba(0,0,0,0.6)`
                           : isMovable
-                          ? `0 0 16px ${colorCfg.bgHex}, 0 4px 10px rgba(0,0,0,0.5)`
-                          : '0 3px 6px rgba(0,0,0,0.4)',
+                          ? `0 0 12px ${colorCfg.bgHex}, 0 3px 8px rgba(0,0,0,0.45)`
+                          : '0 2px 5px rgba(0,0,0,0.35)',
                       }}
                     >
                       {/* Inner glossy core / lens with Token ID */}
-                      <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-white/40 border border-white/80 shadow-inner flex items-center justify-center">
-                        <span className="text-[8.5px] sm:text-[10px] font-black text-white drop-shadow-md">
+                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-white/40 border border-white/80 shadow-inner flex items-center justify-center">
+                        <span className="text-[7.5px] sm:text-[9px] font-black text-white drop-shadow-xs">
                           {token.id + 1}
                         </span>
                       </div>
 
-                      {/* Movable Crown/Indicator Halo */}
+                      {/* Movable Turn Indicator Badge - Compact so it never obscures other tokens */}
                       {isMovable && !isWalking && (
-                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-amber-400 rounded-full border border-zinc-900 flex items-center justify-center shadow-xs">
-                          <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full animate-ping" />
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-amber-400 rounded-full border border-zinc-950 flex items-center justify-center shadow-xs">
+                          <span className="w-1 h-1 bg-zinc-950 rounded-full animate-ping" />
                         </span>
                       )}
                     </div>
 
                     {/* Bottom Ring / Pin Base Shadow */}
                     <div
-                      className={`w-4 sm:w-5 -mt-0.5 rounded-full blur-[0.5px] transition-all ${
-                        isWalking ? 'h-2 opacity-50 scale-110' : 'h-1 sm:h-1.5 opacity-70'
+                      className={`w-3.5 sm:w-4.5 -mt-0.5 rounded-full blur-[0.5px] transition-all ${
+                        isWalking ? 'h-1.5 opacity-50' : 'h-1 sm:h-1.5 opacity-65'
                       }`}
-                      style={{ background: 'rgba(0, 0, 0, 0.6)' }}
+                      style={{ background: 'rgba(0, 0, 0, 0.55)' }}
                     />
                   </div>
                 </button>

@@ -17,7 +17,7 @@
  *    - The dice result is NEVER manipulated to satisfy a game rule or help/hinder any player.
  */
 
-import { LudoColor, LudoPlayer, wouldAllMovesCauseUnsafeStack } from './ludoEngine';
+import { LudoColor, LudoPlayer, wouldAllMovesCauseUnsafeStack, wouldAnyMoveCauseSameColorCollision } from './ludoEngine';
 
 export type DiceValue = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -146,11 +146,19 @@ export function rollFairDice(player?: LudoPlayer): DiceValue {
       }
     }
 
-    // Approach B: Filter candidate faces to prevent same-color unsafe collisions
+    // Same-Color Collision Avoidance:
+    // 1. Primary filter: faces where NO token of this player would reach a square already occupied by another same-color token
+    const collisionFreeFaces = allFaces.filter(
+      (face) => !wouldAnyMoveCauseSameColorCollision(player, face) && !wouldAllMovesCauseUnsafeStack(player, face)
+    );
+    // 2. Secondary fallback: faces where at least one legal move exists without causing a stack
     const candidateFaces = allFaces.filter((face) => !wouldAllMovesCauseUnsafeStack(player, face));
     let chosenValue: DiceValue;
 
-    if (candidateFaces.length > 0) {
+    if (collisionFreeFaces.length > 0) {
+      const idx = getUniformRandomIndex(collisionFreeFaces.length);
+      chosenValue = collisionFreeFaces[idx];
+    } else if (candidateFaces.length > 0) {
       const idx = getUniformRandomIndex(candidateFaces.length);
       chosenValue = candidateFaces[idx];
     } else {

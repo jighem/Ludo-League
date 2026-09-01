@@ -253,6 +253,7 @@ export const EditMatchModal: React.FC<EditMatchModalProps> = ({
       results.push({
         position: pos,
         player_id: Number(selectedPlayers[pos]),
+        is_bot: 0,
         kills: Number(combatStats[pos]?.kills || 0),
         deaths: Number(combatStats[pos]?.deaths || 0)
       });

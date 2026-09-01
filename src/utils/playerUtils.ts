@@ -20,6 +20,9 @@ export function isBotPlayer(
   if (player.is_bot === 1 || player.is_bot === true) {
     return true;
   }
+  if (player.is_bot === 0 || player.is_bot === false) {
+    return false;
+  }
 
   // Check full_name / name / player_name patterns
   const name = (player.full_name || player.name || player.player_name || '').toLowerCase().trim();

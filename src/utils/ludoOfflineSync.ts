@@ -21,13 +21,16 @@ export interface LudoSavedSession {
   gameLogs: string[];
   activeTurnNotice: string;
   rankings: Array<{ rank: number; player: LudoPlayer }>;
+  includeCombatPoints?: boolean;
   gameState: 'setup' | 'playing' | 'gameover';
   updatedAt: number;
 }
 
 export interface PendingMatchResult {
   position: number;
-  player_id: number;
+  player_id?: number;
+  player_name?: string;
+  is_bot?: number | boolean;
   kills: number;
   deaths: number;
 }
@@ -39,6 +42,9 @@ export interface PendingMatch {
   player_count: number;
   league_id: number;
   notes: string;
+  include_combat_points?: boolean;
+  action_logs?: any;
+  kill_logs?: any;
   results: PendingMatchResult[];
   createdAt: number;
   retryCount: number;
@@ -154,6 +160,9 @@ export async function syncPendingMatches(
           match_time: match.match_time,
           player_count: match.player_count,
           league_id: match.league_id,
+          include_combat_points: match.include_combat_points,
+          action_logs: match.action_logs,
+          kill_logs: match.kill_logs,
           notes: `${match.notes} [Synced Offline Game]`,
           results: match.results
         })

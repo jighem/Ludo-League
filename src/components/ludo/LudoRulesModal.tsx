@@ -282,13 +282,19 @@ export const LudoRulesModal: React.FC<LudoRulesModalProps> = ({ isOpen, onClose 
                 </table>
               </div>
 
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs flex items-center justify-between">
-                <div className="font-extrabold text-amber-800 dark:text-amber-300">
-                  Combat Points Modifier:
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="font-extrabold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <Swords className="w-3.5 h-3.5" />
+                    <span>Optional Combat Scoring Modifier:</span>
+                  </div>
+                  <div className="font-black text-zinc-900 dark:text-white">
+                    Total Points = Base Rank Pts + (Kills × 5) - (Deaths × 5)
+                  </div>
                 </div>
-                <div className="font-black text-zinc-900 dark:text-white">
-                  Total Points = Base Rank Pts + (Kills × 5) - (Deaths × 5)
-                </div>
+                <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                  When the "Include Death/Kill Combat Reward" checkbox is unchecked before starting a match, the final score will be calculated strictly based on finishing match ranking without kill bonuses or death penalties.
+                </p>
               </div>
             </div>
           )}

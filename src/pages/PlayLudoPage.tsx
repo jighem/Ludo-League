@@ -91,6 +91,7 @@ export const PlayLudoPage: React.FC<{
   const [gameMode, setGameMode] = useState<GameMode>('classic');
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(4);
   const [targetLeagueId, setTargetLeagueId] = useState<number>(activeLeagueId || 1);
+  const [includeCombatPoints, setIncludeCombatPoints] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(ludoAudio.getMuted());
 
   // Keep target league in sync with global active league while in setup
@@ -247,6 +248,7 @@ export const PlayLudoPage: React.FC<{
         setPlayerCount(saved.playerCount || 4);
         if (saved.targetLeagueId) setTargetLeagueId(saved.targetLeagueId);
         if (saved.seatConfig) setSeatConfig(saved.seatConfig);
+        if (saved.includeCombatPoints !== undefined) setIncludeCombatPoints(saved.includeCombatPoints);
         setPlayers(saved.players);
         playersRef.current = saved.players;
         setTurnColor(saved.turnColor);
@@ -295,6 +297,7 @@ export const PlayLudoPage: React.FC<{
         gameMode,
         playerCount,
         targetLeagueId,
+        includeCombatPoints,
         seatConfig,
         players,
         turnColor,
@@ -318,6 +321,7 @@ export const PlayLudoPage: React.FC<{
     gameMode,
     playerCount,
     targetLeagueId,
+    includeCombatPoints,
     seatConfig
   ]);
 
@@ -547,7 +551,7 @@ export const PlayLudoPage: React.FC<{
     killLogsRef.current = [];
     setMatchSubmittedSuccess(null);
     setSubmissionError('');
-    setGameLogs([`Match began in ${gameMode === 'classic' ? 'Classic' : 'Quick'} mode!`]);
+    setGameLogs([`Match began in ${gameMode === 'classic' ? 'Classic' : 'Quick'} mode (${includeCombatPoints ? '⚔️ Combat +5/-5 pts scoring active' : '🛡️ Standard Rank-only scoring'})!`]);
     setActiveTurnNotice(`${initialPlayers[0].name} (${COLOR_CONFIG[initialPlayers[0].color].name})'s turn to roll.`);
     setGameState('playing');
     gameStateRef.current = 'playing';
@@ -1173,7 +1177,8 @@ export const PlayLudoPage: React.FC<{
         match_time: matchTime,
         player_count: playerCount,
         league_id: targetLeagueId,
-        notes: `Ludo Play Match (${gameMode === 'classic' ? 'Classic' : 'Quick'} Mode)`,
+        include_combat_points: includeCombatPoints,
+        notes: `Ludo Play Match (${gameMode === 'classic' ? 'Classic' : 'Quick'} Mode${includeCombatPoints ? ', Combat +5/-5 pts' : ', Rank-only scoring'})`,
         action_logs: gameLogsRef.current || gameLogs,
         kill_logs: killLogsRef.current || killLogs,
         results
@@ -1549,6 +1554,47 @@ export const PlayLudoPage: React.FC<{
             </div>
           </div>
 
+          {/* Optional Combat Rewards & Penalty Toggle Checkbox */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 transition-all">
+            <label className="flex items-start sm:items-center justify-between gap-3 cursor-pointer select-none">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                  includeCombatPoints 
+                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' 
+                    : 'bg-zinc-200/60 dark:bg-zinc-700 text-zinc-400 border-zinc-300 dark:border-zinc-600'
+                }`}>
+                  <Swords className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs sm:text-sm font-extrabold text-zinc-900 dark:text-white">
+                      Include Death / Kill Combat Reward & Penalty
+                    </span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                      includeCombatPoints
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                        : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
+                    }`}>
+                      {includeCombatPoints ? '⚔️ +5 / -5 PTS Active' : '🛡️ Rank-Only Scoring'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
+                    {includeCombatPoints 
+                      ? 'When ticked, knockouts add +5 pts and player token deaths deduct -5 pts from final match score.' 
+                      : 'When unchecked, final score is determined solely by finishing match ranking (1st, 2nd, 3rd, 4th).'}
+                  </p>
+                </div>
+              </div>
+              <input
+                id="checkbox-include-combat-points"
+                type="checkbox"
+                checked={includeCombatPoints}
+                onChange={(e) => setIncludeCombatPoints(e.target.checked)}
+                className="w-5 h-5 mt-1 sm:mt-0 rounded-lg border-zinc-300 text-amber-500 focus:ring-amber-500 dark:bg-zinc-900 dark:border-zinc-700 cursor-pointer shrink-0 accent-amber-500"
+              />
+            </label>
+          </div>
+
           {/* Seat Color Cards Configuration */}
           <div className="space-y-3 pt-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400">
@@ -1874,7 +1920,7 @@ export const PlayLudoPage: React.FC<{
                     <div className="bg-zinc-950/95 border-2 border-amber-400 rounded-3xl p-4 shadow-2xl ring-4 ring-red-500/50 backdrop-blur-md text-center flex flex-col items-center gap-2">
                       <div className="flex items-center gap-2 bg-red-600/90 text-white text-[11px] sm:text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
                         <Swords className="w-4 h-4 animate-spin shrink-0 text-amber-300" style={{ animationDuration: '3s' }} />
-                        <span>KNOCKOUT! +5 PTS</span>
+                        <span>{includeCombatPoints ? 'KNOCKOUT! +5 PTS' : 'KNOCKOUT!'}</span>
                         <Swords className="w-4 h-4 animate-spin shrink-0 text-amber-300" style={{ animationDuration: '3s' }} />
                       </div>
                       <div className="text-sm sm:text-base font-black text-white flex items-center justify-center gap-1.5 flex-wrap">
@@ -1882,14 +1928,22 @@ export const PlayLudoPage: React.FC<{
                         <span className="text-zinc-400 text-xs font-medium">knocked out</span>
                         <span className="text-rose-400">{combatPopup.victimName}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-bold">
-                        <span className="text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
-                          +5 PTS Kill Bonus
-                        </span>
-                        <span className="text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded-md border border-rose-500/30">
-                          -5 PTS Penalty
-                        </span>
-                      </div>
+                      {includeCombatPoints ? (
+                        <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-bold">
+                          <span className="text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                            +5 PTS Kill Bonus
+                          </span>
+                          <span className="text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded-md border border-rose-500/30">
+                            -5 PTS Penalty
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-bold">
+                          <span className="text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
+                            🛡️ Rank-Only Scoring (Combat Points Off)
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -2085,11 +2139,13 @@ export const PlayLudoPage: React.FC<{
               const basePts = currentPoints[item.rank] || 0;
               const kills = item.player.kills || 0;
               const deaths = item.player.deaths || 0;
-              const combatPts = (kills * 5) - (deaths * 5);
-              const totalPts = Math.max(0, Number((basePts + combatPts).toFixed(2)));
+              const combatPts = includeCombatPoints ? ((kills * 5) - (deaths * 5)) : 0;
+              const totalPts = includeCombatPoints
+                ? Math.max(0, Number((basePts + combatPts).toFixed(2)))
+                : basePts;
               const colorCfg = COLOR_CONFIG[item.player.color] || { name: 'Player', bgHex: '#fbbf24' };
               const playerName = item.player.name || colorCfg.name || 'Player';
-              const isFloored = basePts + combatPts < 0;
+              const isFloored = includeCombatPoints && (basePts + combatPts < 0);
 
               return (
                 <div
@@ -2114,8 +2170,8 @@ export const PlayLudoPage: React.FC<{
                       </div>
                       <div className="text-[10px] text-zinc-400 uppercase font-bold flex flex-wrap items-center gap-2 mt-0.5">
                         <span>Rank {item.rank} • {colorCfg.name} Seat</span>
-                        <span className="text-red-500 font-extrabold">⚔️ {kills} Kills (+{kills * 5})</span>
-                        <span className="text-purple-500 font-extrabold">💀 {deaths} Deaths (-{deaths * 5})</span>
+                        <span className="text-red-500 font-extrabold">⚔️ {kills} Kills {includeCombatPoints ? `(+${kills * 5})` : ''}</span>
+                        <span className="text-purple-500 font-extrabold">💀 {deaths} Deaths {includeCombatPoints ? `(-${deaths * 5})` : ''}</span>
                       </div>
                     </div>
                   </div>
@@ -2125,7 +2181,11 @@ export const PlayLudoPage: React.FC<{
                       +{totalPts} pts
                     </div>
                     <div className="text-[10px] text-zinc-400 font-medium">
-                      Base {basePts} {combatPts >= 0 ? `+ ${combatPts}` : `- ${Math.abs(combatPts)}`} combat {isFloored ? '(Floored at 0)' : ''}
+                      {includeCombatPoints ? (
+                        <>Base {basePts} {combatPts >= 0 ? `+ ${combatPts}` : `- ${Math.abs(combatPts)}`} combat {isFloored ? '(Floored at 0)' : ''}</>
+                      ) : (
+                        <>Standard Rank Score (Combat points off)</>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2307,11 +2367,11 @@ export const PlayLudoPage: React.FC<{
                             </span>
                           </div>
                           <div className="flex items-center space-x-1 text-[9px] font-black">
-                            <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title="Kills (+5 pts each)">
-                              ⚔️ {p.kills || 0} (+{(p.kills || 0) * 5})
+                            <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20" title={includeCombatPoints ? "Kills (+5 pts each)" : "Kills (Combat points off)"}>
+                              ⚔️ {p.kills || 0} {includeCombatPoints ? `(+${(p.kills || 0) * 5})` : 'kills'}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20" title="Deaths (-5 pts each)">
-                              💀 {p.deaths || 0} (-{(p.deaths || 0) * 5})
+                            <span className="px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20" title={includeCombatPoints ? "Deaths (-5 pts each)" : "Deaths (Combat points off)"}>
+                              💀 {p.deaths || 0} {includeCombatPoints ? `(-${(p.deaths || 0) * 5})` : 'deaths'}
                             </span>
                           </div>
                         </div>

@@ -81,7 +81,9 @@ router.post('/check-duplicate', authenticateToken, async (req, res) => {
 // Create new match (Transactional)
 router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
-    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs, include_combat_points } = req.body;
+
+    const includeCombat = include_combat_points !== false && include_combat_points !== 0 && include_combat_points !== 'false';
 
     // Validations
     if (!match_date || !match_time) {
@@ -120,25 +122,40 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
       const r = results[i];
       let pid = Number(r.player_id);
       const pos = Number(r.position);
+      const providedName = (r.player_name || '').trim();
 
-      const fallbackName = r.player_name?.trim() || `Bot ${i + 1} (AI)`;
-      const isBot =
-        r.is_bot === 1 ||
-        r.is_bot === true ||
-        r.isBot === true ||
-        /^bot(\s|-|$)/i.test(fallbackName) ||
-        /\(ai\)/i.test(fallbackName) ||
-        /\[bot\]/i.test(fallbackName) ||
-        fallbackName.toLowerCase() === 'bot';
+      // Check if player ID exists in database
+      let dbPlayer: any = null;
+      if (pid && !isNaN(pid)) {
+        const found = await query<any>('SELECT id, full_name, is_bot FROM players WHERE id = ?', [pid]);
+        if (found.length > 0) {
+          dbPlayer = found[0];
+        }
+      }
+
+      // Determine if this result is for a bot
+      const isExplicitBot = r.is_bot === 1 || r.is_bot === true || r.isBot === true;
+      const isExplicitHuman = r.is_bot === 0 || r.is_bot === false || r.isBot === false;
+      const hasBotName = providedName !== '' && (
+        /^bot(\s|-|$)/i.test(providedName) ||
+        /\(ai\)/i.test(providedName) ||
+        /\[bot\]/i.test(providedName) ||
+        providedName.toLowerCase() === 'bot'
+      );
+
+      const isBot = !isExplicitHuman && (isExplicitBot || (dbPlayer ? dbPlayer.is_bot === 1 : hasBotName));
 
       if (isBot) {
         // Find or create dedicated bot player record
-        const botName = fallbackName.toLowerCase().includes('bot') ? fallbackName : `Bot ${fallbackName} (AI)`;
+        const botName = providedName
+          ? (providedName.toLowerCase().includes('bot') ? providedName : `Bot ${providedName} (AI)`)
+          : `Bot ${i + 1} (AI)`;
+
         const existingBot = await query<any>('SELECT id FROM players WHERE LOWER(full_name) = LOWER(?) AND is_bot = 1', [botName]);
         if (existingBot.length > 0 && !usedPlayerIds.has(Number(existingBot[0].id))) {
           pid = Number(existingBot[0].id);
         } else {
-          const uniqueBotName = usedPlayerIds.has(pid) ? `${botName} ${i + 1}` : botName;
+          const uniqueBotName = usedPlayerIds.has(pid) || !pid ? (existingBot.length > 0 ? `${botName} ${i + 1}` : botName) : botName;
           const dateJoined = new Date().toISOString().split('T')[0];
           const insRes = await execute(
             `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
@@ -147,20 +164,26 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
           );
           pid = insRes.insertId;
         }
-      } else if (!pid || isNaN(pid) || usedPlayerIds.has(pid)) {
-        // Find or create human player
-        const existing = await query<any>('SELECT id, is_bot FROM players WHERE LOWER(full_name) = LOWER(?)', [fallbackName]);
-        if (existing.length > 0 && !usedPlayerIds.has(Number(existing[0].id))) {
-          pid = Number(existing[0].id);
-        } else {
-          const uniqueName = usedPlayerIds.has(pid) ? `${fallbackName} ${i + 1}` : fallbackName;
-          const dateJoined = new Date().toISOString().split('T')[0];
-          const insRes = await execute(
-            `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
-             VALUES (?, ?, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-            [uniqueName, dateJoined]
-          );
-          pid = insRes.insertId;
+      } else {
+        // Human player
+        if (dbPlayer && !usedPlayerIds.has(Number(dbPlayer.id))) {
+          pid = Number(dbPlayer.id);
+        } else if (!pid || isNaN(pid) || usedPlayerIds.has(pid)) {
+          // Find by name or create a human player/guest
+          const humanName = providedName || `Guest ${i + 1}`;
+          const existing = await query<any>('SELECT id, is_bot FROM players WHERE LOWER(full_name) = LOWER(?) AND (is_bot = 0 OR is_bot IS NULL)', [humanName]);
+          if (existing.length > 0 && !usedPlayerIds.has(Number(existing[0].id))) {
+            pid = Number(existing[0].id);
+          } else {
+            const uniqueName = usedPlayerIds.has(pid) ? `${humanName} ${i + 1}` : humanName;
+            const dateJoined = new Date().toISOString().split('T')[0];
+            const insRes = await execute(
+              `INSERT INTO players (full_name, date_joined, is_active, is_bot, created_at, updated_at)
+               VALUES (?, ?, 1, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+              [uniqueName, dateJoined]
+            );
+            pid = insRes.insertId;
+          }
         }
       }
 
@@ -225,9 +248,9 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
     // Transaction execution
     const newMatchId = await transaction(async (tx) => {
       const mRes = await tx.execute(
-        `INSERT INTO matches (league_id, friendly_id, match_date, match_time, player_count, notes, action_logs, kill_logs, created_by, is_deleted, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [targetLeagueId, friendlyId, match_date, match_time, pCount, notes?.trim() || null, actionLogsStr, killLogsStr, createdBy]
+        `INSERT INTO matches (league_id, friendly_id, match_date, match_time, player_count, notes, include_combat_points, action_logs, kill_logs, created_by, is_deleted, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [targetLeagueId, friendlyId, match_date, match_time, pCount, notes?.trim() || null, includeCombat ? 1 : 0, actionLogsStr, killLogsStr, createdBy]
       );
 
       const matchId = mRes.insertId;
@@ -238,8 +261,8 @@ router.post('/', optionalAuthenticateToken, async (req: AuthenticatedRequest, re
         const kills = Math.max(0, Number(r.kills) || 0);
         const deaths = Math.max(0, Number(r.deaths) || 0);
         const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
-        // Combat rule: +5 pts per kill, -5 pts per death. Floor at 0 (no negative final score even with excessive deaths)
-        const rawPoints = basePoints + (kills * 5) - (deaths * 5);
+        // Combat rule: +5 pts per kill, -5 pts per death (when include_combat_points is true). Floor at 0
+        const rawPoints = includeCombat ? (basePoints + (kills * 5) - (deaths * 5)) : basePoints;
         const points = Math.max(0, Number(rawPoints.toFixed(2)));
 
         await tx.execute(
@@ -421,7 +444,7 @@ router.get('/:id', optionalAuthenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async (req: AuthenticatedRequest, res) => {
   try {
     const matchId = Number(req.params.id);
-    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs } = req.body;
+    const { match_date, match_time, player_count, notes, results, league_id, action_logs, kill_logs, include_combat_points } = req.body;
 
     const existingMatch = await query<any>('SELECT * FROM matches WHERE id = ? AND is_deleted = 0', [matchId]);
     if (existingMatch.length === 0) {
@@ -429,6 +452,9 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
     }
 
     const currentMatch = existingMatch[0];
+    const includeCombat = include_combat_points !== undefined
+      ? (include_combat_points !== false && include_combat_points !== 0 && include_combat_points !== 'false')
+      : (currentMatch.include_combat_points !== 0 && currentMatch.include_combat_points !== false);
     const isAdmin = req.user?.role === 'admin';
     const isOwner = currentMatch.created_by != null && req.user?.id != null && Number(currentMatch.created_by) === Number(req.user.id);
 
@@ -511,8 +537,8 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
     await transaction(async (tx) => {
       // Update match record
       await tx.execute(
-        `UPDATE matches SET league_id = ?, match_date = ?, match_time = ?, player_count = ?, notes = ?, action_logs = ?, kill_logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [targetLeagueId, match_date, match_time, pCount, notes?.trim() || null, actionLogsStr, killLogsStr, matchId]
+        `UPDATE matches SET league_id = ?, match_date = ?, match_time = ?, player_count = ?, notes = ?, include_combat_points = ?, action_logs = ?, kill_logs = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [targetLeagueId, match_date, match_time, pCount, notes?.trim() || null, includeCombat ? 1 : 0, actionLogsStr, killLogsStr, matchId]
       );
 
       // Replace match results
@@ -527,8 +553,8 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'operator']), async 
         let deaths = r.deaths !== undefined && r.deaths !== null ? Math.max(0, Number(r.deaths) || 0) : (logsDeathsMap[`id_${pid}`] || 0);
 
         const basePoints = pointsMap[pos as keyof typeof pointsMap] || 0.0;
-        // Combat rule: +5 pts per kill, -5 pts per death. Floor at 0 (no negative final score even with excessive deaths)
-        const rawPoints = basePoints + (kills * 5) - (deaths * 5);
+        // Combat rule: +5 pts per kill, -5 pts per death (when include_combat_points is true). Floor at 0
+        const rawPoints = includeCombat ? (basePoints + (kills * 5) - (deaths * 5)) : basePoints;
         const points = Math.max(0, Number(rawPoints.toFixed(2)));
 
         await tx.execute(

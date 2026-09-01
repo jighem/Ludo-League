@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS matches (
   match_time TIME NOT NULL,
   player_count INT NOT NULL,
   notes TEXT NULL,
+  include_combat_points TINYINT(1) NOT NULL DEFAULT 1,
   action_logs LONGTEXT NULL,
   kill_logs LONGTEXT NULL,
   created_by INT NULL,

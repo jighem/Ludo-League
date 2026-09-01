@@ -137,6 +137,16 @@ export async function initDatabase() {
           await mysqlPool.query(`ALTER TABLE matches ADD COLUMN kill_logs LONGTEXT NULL AFTER action_logs;`);
         }
 
+        // Check if include_combat_points column exists on matches table
+        const [icpCols]: any = await mysqlPool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'matches' AND COLUMN_NAME = 'include_combat_points';
+        `);
+        if (icpCols.length === 0) {
+          console.log('Adding include_combat_points column to MySQL matches table...');
+          await mysqlPool.query(`ALTER TABLE matches ADD COLUMN include_combat_points TINYINT(1) NOT NULL DEFAULT 1 AFTER notes;`);
+        }
+
         // Check if is_bot column exists on players table
         const [botCols]: any = await mysqlPool.query(`
           SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -257,6 +267,7 @@ function initEmbeddedSchema() {
       match_time TIME NOT NULL,
       player_count INTEGER NOT NULL,
       notes TEXT,
+      include_combat_points INTEGER NOT NULL DEFAULT 1,
       action_logs TEXT,
       kill_logs TEXT,
       created_by INTEGER,
@@ -349,6 +360,9 @@ function initEmbeddedSchema() {
     }
     if (!cols.includes('kill_logs')) {
       sqlJsDb.exec('ALTER TABLE matches ADD COLUMN kill_logs TEXT DEFAULT NULL;');
+    }
+    if (!cols.includes('include_combat_points')) {
+      sqlJsDb.exec('ALTER TABLE matches ADD COLUMN include_combat_points INTEGER NOT NULL DEFAULT 1;');
     }
   } catch (err) {
     // Already exists or fresh db

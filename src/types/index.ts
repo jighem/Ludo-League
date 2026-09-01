@@ -68,6 +68,7 @@ export interface Match {
   match_time: string;
   player_count: number;
   notes: string | null;
+  include_combat_points?: boolean | number;
   action_logs?: string | string[] | null;
   kill_logs?: string | Array<{
     killer_id?: number;
